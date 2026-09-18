@@ -1,0 +1,5 @@
+bridge-extension.pem
+bin/__pycache__/
+*.py[cod]
+*.tmp
+.DS_Store

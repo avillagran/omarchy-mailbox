@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+"""gmailbox — fetch Gmail emails via Chrome DevTools Protocol.
+
+Launches Chromium with remote debugging, connects via CDP,
+executes JavaScript in the Gmail page to extract email data.
+"""
+import json
+import os
+import re
+import shutil
+import subprocess
+import tempfile
+import time
+
+CACHE = "/tmp/gmailbox-cache.json"
+CACHE_TTL = 300  # 5 minutes default
+CHROMIUM_BIN = os.environ.get("CHROMIUM_BIN", "/usr/bin/chromium")
+CHROMIUM_PROFILE = os.path.expanduser("~/.config/chromium")
+GMAIL_URL = "https://mail.google.com/mail/u/0/#inbox"
+DEBUG_PORT = 9321
+
+
+def read_cache():
+    """Return cached data if fresh, else None."""
+    try:
+        with open(CACHE) as f:
+            data = json.load(f)
+        interval = data.get("_interval", CACHE_TTL)
+        if time.time() - data.get("_ts", 0) < interval:
+            return data
+    except Exception:
+        pass
+    return None
+
+
+def write_cache(data):
+    data["_ts"] = time.time()
+    try:
+        with open(CACHE, "w") as f:
+            json.dump(data, f)
+    except Exception:
+        pass
+
+
+def fetch_via_cdp():
+    """Use Chrome DevTools Protocol to extract email data from Gmail."""
+    tmpdir = tempfile.mkdtemp(prefix="gmailbox-")
+    try:
+        # Copy essential profile files
+        dst_default = os.path.join(tmpdir, "Default")
+        os.makedirs(dst_default, exist_ok=True)
+
+        for fname in ["Cookies", "Local Storage", "Preferences", "Secure Preferences"]:
+            src = os.path.join(CHROMIUM_PROFILE, "Default", fname)
+            dst = os.path.join(dst_default, fname)
+            if os.path.isfile(src):
+                shutil.copy2(src, dst)
+            elif os.path.isdir(src):
+                shutil.copytree(src, dst, dirs_exist_ok=True)
+
+        for fname in ["Preferences", "Secure Preferences", "Local State"]:
+            src = os.path.join(CHROMIUM_PROFILE, fname)
+            if os.path.isfile(src):
+                shutil.copy2(src, os.path.join(tmpdir, fname))
+
+        # Launch Chromium with remote debugging
+        cmd = [
+            CHROMIUM_BIN,
+            "--headless=new",
+            "--disable-gpu",
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--user-data-dir=" + tmpdir,
+            "--remote-debugging-port=" + str(DEBUG_PORT),
+            "--no-first-run",
+            "--no-default-browser-check",
+            GMAIL_URL,
+        ]
+        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        try:
+            # Wait for CDP endpoint
+            import urllib.request
+            for _ in range(30):
+                try:
+                    urllib.request.urlopen(f"http://127.0.0.1:{DEBUG_PORT}/json", timeout=1)
+                    break
+                except Exception:
+                    time.sleep(0.5)
+
+            # Get page list
+            resp = urllib.request.urlopen(f"http://127.0.0.1:{DEBUG_PORT}/json")
+            pages = json.loads(resp.read())
+
+            # Find Gmail page
+            gmail_page = None
+            for page in pages:
+                if "mail.google.com" in page.get("url", ""):
+                    gmail_page = page
+                    break
+
+            if not gmail_page:
+                return [], 0
+
+            # Connect via WebSocket and extract email data
+            ws_url = gmail_page["webSocketDebuggerUrl"]
+            emails, unread = extract_emails_ws(ws_url)
+
+            return emails, unread
+        finally:
+            proc.terminate()
+            proc.wait(timeout=5)
+    except Exception:
+        return [], 0
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def extract_emails_ws(ws_url):
+    """Connect to Chrome via WebSocket and extract email data."""
+    try:
+        import websocket
+        ws = websocket.create_connection(ws_url, timeout=15)
+
+        # Enable Runtime
+        ws.send(json.dumps({"id": 1, "method": "Runtime.enable"}))
+        ws.recv()
+
+        # Wait for page to load
+        time.sleep(3)
+
+        # Execute JavaScript to extract emails
+        js_code = """
+        (() => {
+            const emails = [];
+            // Gmail renders emails in table rows with role="row"
+            const rows = document.querySelectorAll('tr[role="row"], div[role="row"]');
+            rows.forEach(row => {
+                const subjectEl = row.querySelector('[data-thread-id] span, .bog, .bqe, [class*="subject"]');
+                const fromEl = row.querySelector('.yW, .zF, [class*="sender"]');
+                const snippetEl = row.querySelector('.y2, .Zt, [class*="snippet"]');
+                const dateEl = row.querySelector('.xY, .yO, [class*="date"]');
+
+                if (subjectEl || fromEl) {
+                    emails.push({
+                        subject: subjectEl ? subjectEl.textContent.trim() : '',
+                        from: fromEl ? fromEl.textContent.trim() : '',
+                        snippet: snippetEl ? snippetEl.textContent.trim() : '',
+                        date: dateEl ? dateEl.textContent.trim() : '',
+                        unread: row.querySelector('.y6, .bqe, [class*="unread"]') !== null
+                    });
+                }
+            });
+
+            // Also try to get unread count from title
+            const titleMatch = document.title.match(/\\(([\\d,]+)\\)/);
+            const unread = titleMatch ? parseInt(titleMatch[1].replace(/,/g, '')) : 0;
+
+            return JSON.stringify({emails: emails.slice(0, 20), unread: unread});
+        })()
+        """
+
+        ws.send(json.dumps({
+            "id": 2,
+            "method": "Runtime.evaluate",
+            "params": {"expression": js_code, "returnByValue": True}
+        }))
+
+        result = json.loads(ws.recv())
+        ws.close()
+
+        # Parse result
+        if "result" in result and "result" in result["result"]:
+            value = result["result"]["result"].get("value", "{}")
+            data = json.loads(value)
+            return data.get("emails", []), data.get("unread", 0)
+
+        return [], 0
+    except Exception:
+        return [], 0
+
+
+def main():
+    # 1. Check cache
+    cached = read_cache()
+    if cached:
+        print(json.dumps(cached))
+        return
+
+    # 2. Fetch via CDP
+    emails, unread = fetch_via_cdp()
+
+    # 3. Build output
+    output = {
+        "accounts": [{"email": "avillagran@gmail.com", "unread": unread}],
+        "total": unread,
+        "emails": emails
+    }
+
+    # 4. Cache and output
+    write_cache(output)
+    print(json.dumps(output))
+
+
+if __name__ == "__main__":
+    main()
