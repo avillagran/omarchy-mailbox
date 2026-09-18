@@ -5,7 +5,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const id = 'ljaeaiekecpbmpkcknojllebemmbockk';
-const latestVersion = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'bridge-extension', 'manifest.json'), 'utf8')).version;
+const latestVersion = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'bridge-extension', 'source', 'manifest.json'), 'utf8')).version;
 let browser = '';
 try { browser = execFileSync('xdg-settings', ['get', 'default-web-browser'], { encoding: 'utf8' }).trim(); } catch (_) {}
 

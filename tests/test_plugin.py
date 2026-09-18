@@ -43,10 +43,10 @@ def native_message(home, message):
 
 
 def test_static_files():
-  for filename in ["manifest.json", "bridge-extension/manifest.json", "i18n.json", "config/accounts.example.json"]:
+  for filename in ["manifest.json", "bridge-extension/source/manifest.json", "i18n.json", "config/accounts.example.json"]:
     json.loads((ROOT / filename).read_text())
     check(f"valid JSON: {filename}", True)
-  for filename in [*ROOT.glob("bin/*.js"), *ROOT.glob("bridge-extension/*.js")]:
+  for filename in [*ROOT.glob("bin/*.js"), *ROOT.glob("bridge-extension/source/*.js")]:
     result = run(["node", "--check", str(filename)])
     check(f"JavaScript syntax: {filename.relative_to(ROOT)}", result.returncode == 0, result.stderr)
   result = run(["bash", "-n", str(ROOT / "bin/gmailbox-bridge-system-install.sh")])
@@ -78,7 +78,7 @@ def test_i18n():
 
 
 def test_versions():
-  extension_version = json.loads((ROOT / "bridge-extension/manifest.json").read_text())["version"]
+  extension_version = json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())["version"]
   check("extension version in user installer", extension_version in (ROOT / "bin/gmailbox-bridge-install.js").read_text())
   check("extension version in system installer", extension_version in (ROOT / "bin/gmailbox-bridge-system-install.sh").read_text())
 
@@ -86,6 +86,8 @@ def test_versions():
 def test_marketplace_structure():
   manifest = json.loads((ROOT / "manifest.json").read_text())
   readme = (ROOT / "README.md").read_text()
+  marketplace_manifests = [path for path in ROOT.rglob("manifest.json") if len(path.relative_to(ROOT).parts) <= 2]
+  check("marketplace sees exactly one root plugin manifest", marketplace_manifests == [ROOT / "manifest.json"], str(marketplace_manifests))
   check("marketplace plugin ID is namespaced and non-reserved", manifest["id"].startswith("io.github.avillagran.") and not manifest["id"].startswith("omarchy."))
   check("marketplace root README documents installation", "## Installation" in readme and "omarchy plugin add" in readme)
   check("marketplace root README documents removal", "## Removal" in readme and "omarchy plugin remove" in readme)
@@ -206,7 +208,7 @@ def test_browser_installer():
     config = home / ".config"
     config.mkdir()
     flags = config / "chrome-flags.conf"
-    flags.write_text(f"--load-extension={ROOT / 'bridge-extension'},/keep/me\n--other-flag\n")
+    flags.write_text(f"--load-extension={ROOT / 'bridge-extension'},{ROOT / 'bridge-extension' / 'source'},/keep/me\n--other-flag\n")
     env = {**os.environ, "HOME": str(home)}
     helper = ROOT / "bin/gmailbox-bridge-install.js"
     result = run(["node", str(helper)], env=env)
@@ -215,7 +217,7 @@ def test_browser_installer():
     external = list(config.glob(f"**/External Extensions/{EXTENSION_ID}.json"))
     check("browser bridge installs four native manifests", len(native) == 4, str(native))
     check("browser bridge installs four external manifests", len(external) == 4, str(external))
-    check("browser bridge removes only its unpacked extension flag", str(ROOT / "bridge-extension") not in flags.read_text() and "/keep/me" in flags.read_text())
+    check("browser bridge removes only its unpacked extension flags", str(ROOT / "bridge-extension") not in flags.read_text() and "/keep/me" in flags.read_text())
     result = run(["node", str(helper), "--uninstall"], env=env)
     check("browser bridge uninstaller exits cleanly", result.returncode == 0, result.stderr)
     check("browser bridge uninstaller removes registrations", not list(config.glob("**/io.github.avillagran.gmailbox.json")) and not list(config.glob(f"**/{EXTENSION_ID}.json")))
