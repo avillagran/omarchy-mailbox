@@ -10,6 +10,10 @@
   const heyProvider = location.hostname === 'app.hey.com' ? globalThis.MailboxHeyProvider : null;
 
   function text(node) { return node ? (node.innerText || node.textContent || '').trim() : ''; }
+  function notificationPermission() {
+    const value = typeof Notification === 'undefined' ? 'unsupported' : Notification.permission;
+    return ['granted', 'denied', 'default'].includes(value) ? value : 'unsupported';
+  }
   function accountIndex() { const match = location.pathname.match(/\/mail\/u\/(\d+)/); return match ? match[1] : '0'; }
   function accountEmail() {
     const meta = document.querySelector('meta[name="og-profile-acct"]')?.getAttribute('content') || '';
@@ -64,6 +68,7 @@
   function snapshotInbox() {
     if (heyProvider) {
       const data = heyProvider.snapshotInbox(document, location.href);
+      data.notificationPermission = notificationPermission();
       if (!data.signedOut && data.account) chrome.runtime.sendMessage({ type: 'mailbox-snapshot', data });
       return;
     }
@@ -78,7 +83,7 @@
     }
     chrome.runtime.sendMessage({
       type: 'mailbox-snapshot',
-      data: { account: accountEmail(), accountVerified: accountIdentityVerified, index: accountIndex(), unread: emails.filter(item => item.unread).length, emails }
+      data: { account: accountEmail(), accountVerified: accountIdentityVerified, index: accountIndex(), notificationPermission: notificationPermission(), unread: emails.filter(item => item.unread).length, emails }
     });
   }
   function currentThreadId() { return heyProvider ? heyProvider.threadIdFromUrl(location.href) : threadIdFromUrl(location.href); }

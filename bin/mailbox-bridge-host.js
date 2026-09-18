@@ -68,6 +68,9 @@ function accountMessages(account) {
   return rows.map(row => ({ ...row, key: row.key || keyFor(row), firstSeenAt: Number(row.firstSeenAt || row.lastSeenAt || Date.now()), lastSeenAt: Number(row.lastSeenAt || row.firstSeenAt || Date.now()) }));
 }
 function bodyBytes(message) { return message.body ? Buffer.byteLength(JSON.stringify(message.body)) : 0; }
+function normalizedNotificationPermission(value) {
+  return ['granted', 'denied', 'default', 'unsupported'].includes(value) ? value : 'unknown';
+}
 function enforceLimits(account, prefs) {
   account.emails = accountMessages(account).sort((a, b) => Number(b.presentInLatestSnapshot) - Number(a.presentInLatestSnapshot) || b.lastSeenAt - a.lastSeenAt).slice(0, prefs.maxMessages);
   let bytes = account.emails.reduce((sum, row) => sum + bodyBytes(row), 0);
@@ -116,6 +119,7 @@ function mergeSnapshot(data, message, prefs) {
     provider: message.provider === 'hey' ? 'hey' : 'gmail',
     label: String(message.label || previous.label || account),
     inboxUrl: String(message.inboxUrl || previous.inboxUrl || ''),
+    notificationPermission: normalizedNotificationPermission(message.notificationPermission || previous.notificationPermission),
     index: String(message.index || previous.index || (message.provider === 'hey' ? '' : '0')),
     unread: Number(message.unread || 0), capturedAt: now, emails: fresh.concat(retained)
   };

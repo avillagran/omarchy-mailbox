@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Mailbox Local Bridge",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Shares Gmail and HEY previews plus optional local plain-text conversation cache with Omarchy Mailbox. No passwords, cookies or OAuth tokens leave this computer.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuCZ97kaAdTlddFcyE1SXI7fqS+D7Y6gNOMyGPancwJ8dXjIs2ETAADIDiY6yi7xPBLTPm9wWq5vws+Z7FPZqalWy1/gSQ0uruLntjDPdXrRgCRSb5LaWCg9MslCeoFtWLXxmEuBy+DXd4qFZQSB+QnWLrcdR3O9Nr9uj7jXuE7upxhEaKOqYUsbcfVDs5VrwOMCC64GWKSXMn1aw8v+PHbgYFyDcAFqtsAfKE4ONdCqibHGoXwBJAw5aLwQJfNh+GGQ9+CsiDW2SsQvHc7WMZX20vCGKyyBlqY9VOITdAQT7EM/gaasK+hpW+YSrU9KeV0Ps8lielj5/GJcFIBFJtwIDAQAB",
   "permissions": ["nativeMessaging", "tabs", "scripting", "alarms"],

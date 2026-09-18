@@ -255,6 +255,13 @@ Panel {
     Quickshell.execDetached(["node", root.bridgePendingBin, account.email])
     Quickshell.execDetached(["xdg-open", "https://mail.google.com/mail/?authuser=" + encodeURIComponent(account.email) + "#inbox"])
   }
+  function openAccountNotificationSettings(account) {
+    if (!account) return
+    var target = account.provider === "gmail"
+      ? "https://mail.google.com/mail/u/" + (account.index || "0") + "/#settings/general"
+      : (account.inboxUrl || "https://app.hey.com/")
+    Quickshell.execDetached(["xdg-open", target])
+  }
   function openInbox() {
     var account = root.accountFor(root.selectedAccount)
     if (account && account.unavailable) {
@@ -440,7 +447,32 @@ Panel {
             onClicked: { Quickshell.execDetached(["node", root.settingsBin, "mark-local-read"]); root.emails = []; root.accounts = root.accounts.map(function(account) { return Object.assign({}, account, { unread: 0 }) }); root.totalUnread = 0 }
             anchors.verticalCenter: parent.verticalCenter
           }
-          Item { width: parent.width - x - Style.space(170); height: 1 }
+          Item {
+            width: Math.max(0, parent.width - x - Style.space(170))
+            height: Style.space(28)
+            Row {
+              id: headerSyncStatus
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              spacing: Style.space(5)
+              opacity: root.syncing ? 1 : 0
+              visible: opacity > 0
+              Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+              Text {
+                text: "󰑐"
+                color: Color.accent
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+                RotationAnimator on rotation { running: root.syncing; from: 0; to: 360; duration: 850; loops: Animation.Infinite }
+              }
+              Text {
+                text: root.t("syncingTabs")
+                color: Color.muted
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+              }
+            }
+          }
           Button {
             iconText: "󰑐"
             bordered: false
@@ -504,21 +536,6 @@ Panel {
           id: contentColumn
           width: scroll.width
           spacing: Style.space(8)
-
-          Rectangle {
-            visible: root.syncing
-            width: parent.width - Style.space(16)
-            height: Style.space(30)
-            anchors.horizontalCenter: parent.horizontalCenter
-            radius: Style.cornerRadius
-            color: Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.14)
-            Row {
-              anchors.centerIn: parent
-              spacing: Style.space(6)
-              Text { id: syncGlyph; text: "󰑐"; color: Color.accent; font.family: Style.font.family; font.pixelSize: Style.font.body; RotationAnimator on rotation { running: root.syncing; from: 0; to: 360; duration: 850; loops: Animation.Infinite } }
-              Text { text: root.t("syncingTabs"); color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption }
-            }
-          }
 
           Column {
             visible: root.settingsMode
@@ -666,6 +683,29 @@ Panel {
                 property var account: modelData
                 width: parent.width
                 spacing: Style.space(8)
+                Rectangle {
+                  property var account: parent.account
+                  width: Style.space(28)
+                  height: Style.space(28)
+                  radius: width / 2
+                  color: account.notificationHealthy ? Qt.rgba(root.badgeColor("green").r, root.badgeColor("green").g, root.badgeColor("green").b, 0.24) : Qt.rgba(Color.urgent.r, Color.urgent.g, Color.urgent.b, 0.18)
+                  border.width: 1
+                  border.color: account.notificationHealthy ? root.badgeColor("green") : Color.urgent
+                  Text { anchors.centerIn: parent; text: parent.account.notificationHealthy ? "✓" : "!"; color: parent.account.notificationHealthy ? root.badgeColor("green") : Color.urgent; font.family: Style.font.family; font.pixelSize: Style.font.body; font.bold: true }
+                  MouseArea {
+                    id: notificationStatusMouse
+                    anchors.fill: parent
+                    enabled: !parent.account.notificationHealthy
+                    hoverEnabled: true
+                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    onClicked: root.openAccountNotificationSettings(parent.account)
+                  }
+                  PanelToolTip {
+                    visible: notificationStatusMouse.containsMouse && !parent.account.notificationHealthy
+                    text: root.t("Enable notifications for this account.")
+                    fontFamily: Style.font.family
+                  }
+                }
                 Rectangle {
                   width: Style.space(28)
                   height: Style.space(28)

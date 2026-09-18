@@ -60,7 +60,8 @@
     "Install bridge": "Install bridge",
     "Open Gmail": "Open Gmail",
     "Open Inbox": "Open Inbox",
-    "(no subject)": "(no subject)"
+    "(no subject)": "(no subject)",
+    "Enable notifications for this account.": "Enable notifications for this account."
   },
   "es": {
     "": {
@@ -123,7 +124,8 @@
     "Install bridge": "instalar puente",
     "Open Gmail": "Abrir Gmail",
     "Open Inbox": "Abrir bandeja de entrada",
-    "(no subject)": "(sin asunto)"
+    "(no subject)": "(sin asunto)",
+    "Enable notifications for this account.": "Activa las notificaciones para esta cuenta."
   },
   "pt": {
     "": {
@@ -186,7 +188,8 @@
     "Install bridge": "Instalar ponte",
     "Open Gmail": "Abra Gmail",
     "Open Inbox": "Abrir caixa de entrada",
-    "(no subject)": "(sem assunto)"
+    "(no subject)": "(sem assunto)",
+    "Enable notifications for this account.": "Ative as notificações para esta conta."
   },
   "fr": {
     "": {
@@ -249,7 +252,8 @@
     "Install bridge": "Installer le pont",
     "Open Gmail": "Ouvrir Gmail",
     "Open Inbox": "Ouvrir la boîte de réception",
-    "(no subject)": "(sans objet)"
+    "(no subject)": "(sans objet)",
+    "Enable notifications for this account.": "Activez les notifications pour ce compte."
   },
   "de": {
     "": {
@@ -312,7 +316,8 @@
     "Install bridge": "Brücke installieren",
     "Open Gmail": "Öffnen Sie Gmail",
     "Open Inbox": "Posteingang öffnen",
-    "(no subject)": "(kein Betreff)"
+    "(no subject)": "(kein Betreff)",
+    "Enable notifications for this account.": "Aktiviere Benachrichtigungen für dieses Konto."
   },
   "it": {
     "": {
@@ -375,7 +380,8 @@
     "Install bridge": "Installa il ponte",
     "Open Gmail": "Apri Gmail",
     "Open Inbox": "Apri Posta in arrivo",
-    "(no subject)": "(nessun oggetto)"
+    "(no subject)": "(nessun oggetto)",
+    "Enable notifications for this account.": "Attiva le notifiche per questo account."
   },
   "nl": {
     "": {
@@ -438,7 +444,8 @@
     "Install bridge": "Brug installeren",
     "Open Gmail": "Open Gmail",
     "Open Inbox": "Open Postvak IN",
-    "(no subject)": "(geen onderwerp)"
+    "(no subject)": "(geen onderwerp)",
+    "Enable notifications for this account.": "Schakel meldingen in voor dit account."
   },
   "pl": {
     "": {
@@ -501,7 +508,8 @@
     "Install bridge": "Zainstaluj mostek",
     "Open Gmail": "Otwórz Gmail",
     "Open Inbox": "Otwórz skrzynkę odbiorczą",
-    "(no subject)": "(brak tematu)"
+    "(no subject)": "(brak tematu)",
+    "Enable notifications for this account.": "Włącz powiadomienia dla tego konta."
   },
   "ru": {
     "": {
@@ -564,7 +572,8 @@
     "Install bridge": "Установить мост",
     "Open Gmail": "Открыть Gmail",
     "Open Inbox": "Открыть входящие",
-    "(no subject)": "(без темы)"
+    "(no subject)": "(без темы)",
+    "Enable notifications for this account.": "Включите уведомления для этой учётной записи."
   },
   "ja": {
     "": {
@@ -627,7 +636,8 @@
     "Install bridge": "ブリッジを設置する",
     "Open Gmail": "Gmailを開く",
     "Open Inbox": "受信箱を開く",
-    "(no subject)": "（件名なし）"
+    "(no subject)": "（件名なし）",
+    "Enable notifications for this account.": "このアカウントの通知を有効にしてください。"
   },
   "ko": {
     "": {
@@ -690,7 +700,8 @@
     "Install bridge": "브리지 설치",
     "Open Gmail": "Gmail 열기",
     "Open Inbox": "받은편지함 열기",
-    "(no subject)": "(제목 없음)"
+    "(no subject)": "(제목 없음)",
+    "Enable notifications for this account.": "이 계정의 알림을 활성화하세요."
   },
   "zh": {
     "": {
@@ -753,7 +764,8 @@
     "Install bridge": "安装桥",
     "Open Gmail": "打开Gmail",
     "Open Inbox": "打开收件箱",
-    "(no subject)": "（无主题）"
+    "(no subject)": "（无主题）",
+    "Enable notifications for this account.": "请为此账户启用通知。"
   },
   "ar": {
     "": {
@@ -816,7 +828,8 @@
     "Install bridge": "تثبيت الجسر",
     "Open Gmail": "افتح Gmail",
     "Open Inbox": "افتح البريد الوارد",
-    "(no subject)": "(بدون موضوع)"
+    "(no subject)": "(بدون موضوع)",
+    "Enable notifications for this account.": "فعّل الإشعارات لهذا الحساب."
   },
   "tr": {
     "": {
@@ -879,7 +892,8 @@
     "Install bridge": "Köprüyü yükle",
     "Open Gmail": "Gmail'yi açın",
     "Open Inbox": "Gelen Kutusunu Aç",
-    "(no subject)": "(konu yok)"
+    "(no subject)": "(konu yok)",
+    "Enable notifications for this account.": "Bu hesap için bildirimleri etkinleştirin."
   },
   "sv": {
     "": {
@@ -942,7 +956,8 @@
     "Install bridge": "Installera bro",
     "Open Gmail": "Öppna Gmail",
     "Open Inbox": "Öppna Inkorgen",
-    "(no subject)": "(inget ämne)"
+    "(no subject)": "(inget ämne)",
+    "Enable notifications for this account.": "Aktivera aviseringar för det här kontot."
   },
   "da": {
     "": {
@@ -1005,7 +1020,8 @@
     "Install bridge": "Installer bro",
     "Open Gmail": "Åbn Gmail",
     "Open Inbox": "Åbn Indbakke",
-    "(no subject)": "(intet emne)"
+    "(no subject)": "(intet emne)",
+    "Enable notifications for this account.": "Aktivér notifikationer for denne konto."
   },
   "no": {
     "": {
@@ -1068,7 +1084,8 @@
     "Install bridge": "Installer bro",
     "Open Gmail": "Åpne Gmail",
     "Open Inbox": "Åpne innboks",
-    "(no subject)": "(uten emne)"
+    "(no subject)": "(uten emne)",
+    "Enable notifications for this account.": "Aktiver varsler for denne kontoen."
   },
   "fi": {
     "": {
@@ -1131,7 +1148,8 @@
     "Install bridge": "Asenna silta",
     "Open Gmail": "Avaa Gmail",
     "Open Inbox": "Avaa Saapuneet",
-    "(no subject)": "(ei aihetta)"
+    "(no subject)": "(ei aihetta)",
+    "Enable notifications for this account.": "Ota tämän tilin ilmoitukset käyttöön."
   },
   "cs": {
     "": {
@@ -1194,6 +1212,7 @@
     "Install bridge": "Nainstalujte most",
     "Open Gmail": "Otevřete Gmail",
     "Open Inbox": "Otevřete Doručenou poštu",
-    "(no subject)": "(bez předmětu)"
+    "(no subject)": "(bez předmětu)",
+    "Enable notifications for this account.": "Povolte oznámení pro tento účet."
   }
 }

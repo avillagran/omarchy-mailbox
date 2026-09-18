@@ -102,10 +102,13 @@ function parseEmailDate(value) {
 }
 function overlayDesktopNotifications(result) {
   try {
-    const snapshotAt = Math.max(0, ...(result.accounts || []).map(account => Number(account.capturedAt || account.lastCapturedAt || result.cachedAt || 0)));
+    const snapshotTimes = (result.accounts || []).map(account => Number(account.capturedAt || account.lastCapturedAt || result.cachedAt || 0)).filter(value => value > 0);
+    // Notifications are not attributable to an account. Retain each event until
+    // every account has produced a snapshot newer than it.
+    const reconciledThrough = snapshotTimes.length ? Math.min(...snapshotTimes) : 0;
     const events = fs.readdirSync(NOTIFICATION_HISTORY_DIR).filter(name => name.endsWith('.json')).map(name => JSON.parse(fs.readFileSync(path.join(NOTIFICATION_HISTORY_DIR, name), 'utf8'))).filter(note => {
       const text = `${note.app || ''} ${note.summary || ''} ${note.body || ''}`.toLowerCase();
-      return Number(note.timestamp || 0) > Math.max(snapshotAt, Date.now() - NOTIFICATION_RETENTION_MS) && /mail\.google\.com|app\.hey\.com|\bgmail\b|\bhey\b/.test(text);
+      return Number(note.timestamp || 0) > Math.max(reconciledThrough, Date.now() - NOTIFICATION_RETENTION_MS) && /mail\.google\.com|app\.hey\.com|\bgmail\b|\bhey\b/.test(text);
     }).sort((a, b) => Number(a.timestamp) - Number(b.timestamp)).slice(-MAX_MESSAGES);
     if (!events.length) return result;
     const notificationEmails = events.map(note => ({ account: '__desktop_notifications__', initials: 'NEW', color: 'accent', notification: true, from: String(note.summary || 'New email notification'), subject: String(note.body || '').replace(/<[^>]*>/g, '').trim(), snippet: `Desktop notification from ${note.app || 'browser'}`, date: '', dateSort: Number(note.timestamp || 0), url: notificationDestination(note) }));
@@ -122,7 +125,8 @@ function readBridge() {
     const accounts = stored.map(item => {
       const preference = prefs[item.account] || {};
       const isLive = Date.now() - Number(item.capturedAt || 0) <= BRIDGE_MAX_AGE_MS;
-      return { email: item.account, label: String(item.label || item.account), provider: item.provider === 'hey' ? 'hey' : 'gmail', inboxUrl: String(item.inboxUrl || ''), unread: Number(item.unread || 0), initials: String(preference.initials || (item.provider === 'hey' ? 'HEY' : defaultInitials(item.account))).slice(0, 3), color: ['accent', 'urgent', 'foreground', 'muted', 'red', 'yellow', 'orange', 'green', 'cyan', 'blue', 'magenta', 'brown'].includes(preference.color) ? preference.color : 'accent', index: String(item.index || (item.provider === 'hey' ? '' : '0')), bridge: true, connectionState: isLive ? 'live' : 'closed', lastCapturedAt: Number(item.capturedAt || 0) };
+      const notificationPermission = ['granted', 'denied', 'default', 'unsupported'].includes(item.notificationPermission) ? item.notificationPermission : 'unknown';
+      return { email: item.account, label: String(item.label || item.account), provider: item.provider === 'hey' ? 'hey' : 'gmail', inboxUrl: String(item.inboxUrl || ''), unread: Number(item.unread || 0), initials: String(preference.initials || (item.provider === 'hey' ? 'HEY' : defaultInitials(item.account))).slice(0, 3), color: ['accent', 'urgent', 'foreground', 'muted', 'red', 'yellow', 'orange', 'green', 'cyan', 'blue', 'magenta', 'brown'].includes(preference.color) ? preference.color : 'accent', index: String(item.index || (item.provider === 'hey' ? '' : '0')), bridge: true, connectionState: isLive ? 'live' : 'closed', lastCapturedAt: Number(item.capturedAt || 0), notificationPermission, notificationHealthy: notificationPermission === 'granted' };
     });
     const emails = stored.flatMap(item => (Array.isArray(item.emails) ? item.emails : (Array.isArray(item.messages) ? item.messages : [])).slice(0, MAX_MESSAGES).map(email => {
       const preference = prefs[item.account] || {};

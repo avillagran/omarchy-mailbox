@@ -68,7 +68,7 @@ def test_i18n():
   english = catalog["en"]
   keys = set(english) - {""}
   check("i18n has 19 locales", len(catalog) == 19, str(sorted(catalog)))
-  check("i18n has 57 message IDs", len(keys) == 57, str(len(keys)))
+  check("i18n has 58 message IDs", len(keys) == 58, str(len(keys)))
   for locale, translations in catalog.items():
     check(f"i18n coverage: {locale}", set(translations) - {""} == keys)
     check(f"i18n plural header: {locale}", "" in translations)
@@ -82,6 +82,7 @@ def test_i18n():
     sync_values = [translations["Synchronizing open Gmail tabs…"], translations["Browser restarted · synchronizing Gmail…"]]
     check(f"provider-neutral synchronization copy: {locale}", all("gmail" not in value.lower() for value in sync_values), str(sync_values))
   check("Spanish synchronization copy says email", catalog["es"]["Synchronizing open Gmail tabs…"] == "Sincronizando email…")
+  check("notification instruction is localized", catalog["es"]["Enable notifications for this account."] == "Activa las notificaciones para esta cuenta.")
 
 
 def test_versions():
@@ -184,8 +185,8 @@ def test_marketplace_structure():
   marketplace_manifests = [path for path in ROOT.rglob("manifest.json") if len(path.relative_to(ROOT).parts) <= 2]
   check("marketplace sees exactly one root plugin manifest", marketplace_manifests == [ROOT / "manifest.json"], str(marketplace_manifests))
   check("marketplace plugin ID is namespaced and non-reserved", manifest["id"].startswith("io.github.avillagran.") and not manifest["id"].startswith("omarchy."))
-  check("first public plugin version is 0.0.1", manifest["version"] == "0.0.1", manifest["version"])
-  check("first public extension version is 0.0.1", json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())["version"] == "0.0.1")
+  check("plugin version advances after first release", manifest["version"] == "0.0.2", manifest["version"])
+  check("extension version advances with notification health", json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())["version"] == "0.0.2")
   check("README documents Gmail and HEY support", "Gmail and HEY" in readme and "https://app.hey.com/*" in readme)
   check("marketplace root README documents installation", "## Installation" in readme and "omarchy plugin add" in readme)
   check("marketplace root README documents removal", "## Removal" in readme and "omarchy plugin remove" in readme)
@@ -206,6 +207,11 @@ def test_panel_badge_propagation():
   check("panel accepts direct HEY topic URLs", "app\\.hey\\.com\\/topics" in source)
   check("panel opens each provider Inbox URL", "account.inboxUrl" in source)
   check("keyboard opens desktop notification rows", "if (email) root.openEmail(email)" in source)
+  check("preferences show per-account notification health first", "notificationHealthy" in source and 'text: parent.account.notificationHealthy ? "✓" : "!"' in source)
+  check("notification warning opens provider settings", "openAccountNotificationSettings" in source and "#settings/general" in source)
+  check("notification warning explains itself on hover", "PanelToolTip" in source and 'root.t("Enable notifications for this account.")' in source and "notificationStatusMouse.containsMouse" in source)
+  check("sync status stays in fixed header space", "id: headerSyncStatus" in source and "opacity: root.syncing ? 1 : 0" in source and source.index("id: headerSyncStatus") < source.index('iconText: "󰑐"'))
+  check("sync status does not shift the message list", 'Rectangle {\n            visible: root.syncing' not in source)
 
 
 def test_notification_reconciliation():
@@ -230,6 +236,14 @@ def test_notification_reconciliation():
     notification = next((row for row in data["emails"] if row.get("notification")), None)
     check("desktop notifications retain a browser destination", notification is not None and notification.get("url") == "https://mail.google.com/", str(notification))
 
+    (cache / "bridge.json").write_text(json.dumps({"accounts": {
+      "newer@example.test": {"account": "newer@example.test", "index": "0", "unread": 0, "capturedAt": now + 2000, "emails": []},
+      "older@example.test": {"account": "older@example.test", "index": "1", "unread": 0, "capturedAt": now, "emails": []}
+    }}))
+    result = run(["node", str(ROOT / "bin/mailbox.js")], env={**os.environ, "HOME": str(home), "MAILBOX_CACHE_TTL_MS": "0"})
+    data = json.loads(result.stdout)
+    check("notification survives until every account has reconciled it", data.get("desktopNotifications") == 1, str(data))
+
 
 def test_native_host():
   host_source = (ROOT / "bin/mailbox-bridge-host.js").read_text()
@@ -244,7 +258,7 @@ def test_native_host():
     response = native_message(home, {"type": "mailbox-snapshot", "account": "login@example.net", "accountVerified": False, "index": "9", "emails": []})
     check("unverified phantom account is rejected", response.get("ok") is False and "verified" in response.get("error", ""), str(response))
     emails = [{"threadId": f"T{index}", "from": "Sender", "subject": f"Subject {index}", "date": str(index), "unread": True, "url": f"https://mail.google.com/mail/u/0/#inbox/T{index}"} for index in range(3)]
-    response = native_message(home, {"type": "mailbox-snapshot", "account": "real@example.com", "accountVerified": True, "index": "0", "unread": 3, "emails": emails})
+    response = native_message(home, {"type": "mailbox-snapshot", "account": "real@example.com", "accountVerified": True, "index": "0", "notificationPermission": "denied", "unread": 3, "emails": emails})
     check("configured account snapshot is accepted", response.get("ok") is True, str(response))
     check("body allowlist obeys message limit", len(response.get("allowedThreadIds", [])) == 2, str(response))
     cache_file = home / ".cache/omarchy/mailbox/bridge.json"
@@ -252,6 +266,7 @@ def test_native_host():
     rows = cache["accounts"]["real@example.com"]["emails"]
     check("native cache obeys message limit", len(rows) == 2)
     check("native cache preserves direct Gmail URLs", all("/#inbox/T" in row["url"] for row in rows))
+    check("native cache preserves notification permission", cache["accounts"]["real@example.com"].get("notificationPermission") == "denied")
     thread_id = rows[0]["threadId"]
     response = native_message(home, {"type": "mailbox-thread-body", "account": "real@example.com", "accountVerified": True, "index": "0", "threadId": thread_id, "complete": True, "messages": [{"messageId": "M1", "from": "Sender", "date": "today", "text": "Complete body"}]})
     check("complete body is cached", response.get("saved") is True, str(response))
@@ -266,7 +281,7 @@ def test_native_host():
     settings["downloadBodies"] = True
     (config / "mailbox.json").write_text(json.dumps(settings))
     hey_email = {"threadId": "12345", "from": "HEY Sender", "subject": "HEY subject", "date": "4:45 PM", "unread": True, "url": "https://app.hey.com/topics/12345"}
-    response = native_message(home, {"type": "mailbox-snapshot", "provider": "hey", "account": "hey:andres@example.com", "label": "andres@example.com", "accountVerified": True, "index": "", "inboxUrl": "https://app.hey.com/", "unread": 1, "emails": [hey_email]})
+    response = native_message(home, {"type": "mailbox-snapshot", "provider": "hey", "account": "hey:andres@example.com", "label": "andres@example.com", "accountVerified": True, "index": "", "inboxUrl": "https://app.hey.com/", "notificationPermission": "granted", "unread": 1, "emails": [hey_email]})
     check("verified HEY account snapshot is accepted", response.get("ok") is True, str(response))
     cache = json.loads(cache_file.read_text())
     hey_account = cache["accounts"]["hey:andres@example.com"]
@@ -277,6 +292,7 @@ def test_native_host():
     rendered = json.loads(result.stdout)
     rendered_hey = next((account for account in rendered["accounts"] if account.get("provider") == "hey"), None)
     check("HEY account reaches the widget model", rendered_hey and rendered_hey.get("label") == "andres@example.com" and rendered_hey.get("inboxUrl") == "https://app.hey.com/", str(rendered.get("accounts")))
+    check("notification health reaches the widget model", rendered_hey and rendered_hey.get("notificationPermission") == "granted" and rendered_hey.get("notificationHealthy") is True, str(rendered_hey))
     check("HEY direct topic reaches the widget model", any(email.get("url") == "https://app.hey.com/topics/12345" for email in rendered["emails"]))
     modes = [stat.S_IMODE(path.stat().st_mode) for path in (home / ".cache/omarchy/mailbox").iterdir() if path.is_file()]
     check("native cache files use mode 0600", all(mode == 0o600 for mode in modes), str(modes))

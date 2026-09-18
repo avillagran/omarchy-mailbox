@@ -14,6 +14,7 @@ The preview uses fictional `.test` accounts and sample messages; it contains no 
 - Rotating unread badge in the Omarchy bar and a combined inbox popup.
 - Direct links that open the selected Gmail or HEY conversation rather than the generic Inbox.
 - Local desktop-notification ingestion while Gmail and HEY tabs are closed.
+- Per-account notification health in Preferences; a warning opens the provider account so blocked browser notifications can be enabled.
 - Optional plain-text body cache for conversations the user has already opened; enabled by default and bounded to the configured per-account message limit.
 - Semantic account colors that update immediately with the active Omarchy theme.
 - Local “Mark as read” tranquility state that never modifies email remotely.
