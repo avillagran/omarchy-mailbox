@@ -1,12 +1,13 @@
 (() => {
-  if (globalThis.__gmailboxBridgeLoaded) return;
-  globalThis.__gmailboxBridgeLoaded = true;
+  if (globalThis.__mailboxBridgeLoaded) return;
+  globalThis.__mailboxBridgeLoaded = true;
   let timer = null;
   let bodyTimer = null;
   let bodyDownloadsEnabled = false;
   let allowedThreadIds = new Set();
   let lastBodySignature = '';
   let accountIdentityVerified = false;
+  const heyProvider = location.hostname === 'app.hey.com' ? globalThis.MailboxHeyProvider : null;
 
   function text(node) { return node ? (node.innerText || node.textContent || '').trim() : ''; }
   function accountIndex() { const match = location.pathname.match(/\/mail\/u\/(\d+)/); return match ? match[1] : '0'; }
@@ -61,6 +62,11 @@
     };
   }
   function snapshotInbox() {
+    if (heyProvider) {
+      const data = heyProvider.snapshotInbox(document, location.href);
+      if (!data.signedOut && data.account) chrome.runtime.sendMessage({ type: 'mailbox-snapshot', data });
+      return;
+    }
     const rows = [...document.querySelectorAll('tr[role="row"], tr.zA, div[role="row"]')];
     const emails = [];
     const seen = new Set();
@@ -71,12 +77,13 @@
       seen.add(key); emails.push(item);
     }
     chrome.runtime.sendMessage({
-      type: 'gmailbox-snapshot',
+      type: 'mailbox-snapshot',
       data: { account: accountEmail(), accountVerified: accountIdentityVerified, index: accountIndex(), unread: emails.filter(item => item.unread).length, emails }
     });
   }
-  function currentThreadId() { return threadIdFromUrl(location.href); }
+  function currentThreadId() { return heyProvider ? heyProvider.threadIdFromUrl(location.href) : threadIdFromUrl(location.href); }
   function expandConversation() {
+    if (heyProvider) return false;
     let clicked = false;
     for (const node of [...document.querySelectorAll('.adx[role="button"], .ajR')].slice(0, 30)) {
       if (node.offsetParent === null) continue;
@@ -87,6 +94,7 @@
   function conversationSnapshot() {
     const threadId = currentThreadId();
     if (!threadId || !bodyDownloadsEnabled || !allowedThreadIds.has(threadId)) return null;
+    if (heyProvider) return heyProvider.conversationSnapshot(document, location.href, heyProvider.snapshotInbox(document, location.href));
     const containers = [...document.querySelectorAll('div.adn.ads')];
     const messages = containers.map(container => {
       const body = container.querySelector('.a3s.aiL, .ii.gt .a3s, .a3s');
@@ -115,15 +123,15 @@
     const signature = JSON.stringify({ threadId: data.threadId, complete: data.complete, messages: data.messages });
     if (signature === lastBodySignature) return;
     lastBodySignature = signature;
-    chrome.runtime.sendMessage({ type: 'gmailbox-thread-body', data });
+    chrome.runtime.sendMessage({ type: 'mailbox-thread-body', data });
   }
   function publish() {
     clearTimeout(timer);
     timer = setTimeout(() => { snapshotInbox(); publishConversation(); }, 250);
   }
   chrome.runtime.onMessage.addListener(message => {
-    if (message?.type === 'gmailbox-refresh') publish();
-    if (message?.type === 'gmailbox-body-policy') {
+    if (message?.type === 'mailbox-refresh') publish();
+    if (message?.type === 'mailbox-body-policy') {
       bodyDownloadsEnabled = message.enabled === true;
       allowedThreadIds = new Set((message.allowedThreadIds || []).map(value => String(value).replace(/^#/, '')));
       if (!bodyDownloadsEnabled) lastBodySignature = '';
@@ -132,6 +140,7 @@
   });
   new MutationObserver(publish).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'aria-expanded'] });
   window.addEventListener('hashchange', () => { lastBodySignature = ''; publish(); });
+  document.addEventListener('turbo:load', () => { lastBodySignature = ''; publish(); });
   publish();
   setInterval(publish, 30000);
 })();

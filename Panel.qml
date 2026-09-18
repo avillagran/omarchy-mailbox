@@ -1,4 +1,4 @@
-// Gmailbox Panel — unread Inbox list popup.
+// Mailbox Panel — Gmail and HEY unread Inbox popup.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -7,8 +7,8 @@ import qs.Commons
 
 Panel {
   id: root
-  moduleName: "io.github.avillagran.omarchy-gmailbox"
-  ipcTarget: "io.github.avillagran.omarchy-gmailbox"
+  moduleName: "io.github.avillagran.omarchy-mailbox"
+  ipcTarget: "io.github.avillagran.omarchy-mailbox"
   manageIpc: false
 
   property var emails: []
@@ -31,20 +31,20 @@ Panel {
     target: Color
     function onShellValuesChanged() { panelThemeColors.reload() }
   }
-  property string binPath: Qt.resolvedUrl("bin/gmailbox.js").toString().replace("file://", "")
-  property string settingsBin: Qt.resolvedUrl("bin/gmailbox-settings.js").toString().replace("file://", "")
-  property string bridgeInstallBin: Qt.resolvedUrl("bin/gmailbox-bridge-install.js").toString().replace("file://", "")
-  property string bridgeSystemInstallBin: Qt.resolvedUrl("bin/gmailbox-bridge-system-install.sh").toString().replace("file://", "")
-  property string browserRestartBin: Qt.resolvedUrl("bin/gmailbox-browser-restart.py").toString().replace("file://", "")
-  property string forceRefreshBin: Qt.resolvedUrl("bin/gmailbox-force-refresh.js").toString().replace("file://", "")
+  property string binPath: Qt.resolvedUrl("bin/mailbox.js").toString().replace("file://", "")
+  property string settingsBin: Qt.resolvedUrl("bin/mailbox-settings.js").toString().replace("file://", "")
+  property string bridgeInstallBin: Qt.resolvedUrl("bin/mailbox-bridge-install.js").toString().replace("file://", "")
+  property string bridgeSystemInstallBin: Qt.resolvedUrl("bin/mailbox-bridge-system-install.sh").toString().replace("file://", "")
+  property string browserRestartBin: Qt.resolvedUrl("bin/mailbox-browser-restart.py").toString().replace("file://", "")
+  property string forceRefreshBin: Qt.resolvedUrl("bin/mailbox-force-refresh.js").toString().replace("file://", "")
   property string browserRestartState: ""
   property string bridgeInstallState: ""
   property string bridgeStatusText: ""
   property bool bridgeUpToDate: false
   property bool bridgeInstalled: false
   property bool bridgeStatusKnown: false
-  property string bridgeStatusBin: Qt.resolvedUrl("bin/gmailbox-bridge-status.js").toString().replace("file://", "")
-  property string keybindBin: Qt.resolvedUrl("bin/gmailbox-keybind.js").toString().replace("file://", "")
+  property string bridgeStatusBin: Qt.resolvedUrl("bin/mailbox-bridge-status.js").toString().replace("file://", "")
+  property string keybindBin: Qt.resolvedUrl("bin/mailbox-keybind.js").toString().replace("file://", "")
   property string shortcutKey: "Q"
   property string shortcutState: ""
   property int maxMessagesPerAccount: 50
@@ -55,7 +55,7 @@ Panel {
   property var msgids: ({})
   property var pendingBadgeSave: null
   property var activeBadgeSave: null
-  property string bridgePendingBin: Qt.resolvedUrl("bin/gmailbox-bridge-pending.js").toString().replace("file://", "")
+  property string bridgePendingBin: Qt.resolvedUrl("bin/mailbox-bridge-pending.js").toString().replace("file://", "")
   property bool settingsMode: false
   property string selectedAccount: "__all__"
   property int selectedEmailIndex: 0
@@ -66,7 +66,7 @@ Panel {
   function tf(key, values) { var result = root.t(key); for (var i = 0; i < values.length; i++) result = result.replace("%" + (i + 1), values[i]); return result }
   function moveEmail(delta) { var rows = root.filteredEmails(); if (!rows.length) return; root.selectedEmailIndex = Math.max(0, Math.min(rows.length - 1, root.selectedEmailIndex + delta)); Qt.callLater(root.ensureSelectedEmailVisible) }
   function toggleSelectedEmail() { var email = root.selectedEmail(); if (!email || email.notification) return; root.expandedEmailIndex = root.expandedEmailIndex === root.selectedEmailIndex ? -1 : root.selectedEmailIndex; Qt.callLater(root.ensureSelectedEmailVisible) }
-  function openSelectedEmail() { var email = root.selectedEmail(); if (email && !email.notification) root.openEmail(email) }
+  function openSelectedEmail() { var email = root.selectedEmail(); if (email) root.openEmail(email) }
   function selectedUnread() {
     if (root.selectedAccount === "__all__") return root.totalUnread
     for (var i = 0; i < root.accounts.length; i++) if (root.accounts[i].email === root.selectedAccount) return root.accounts[i].unread
@@ -181,7 +181,7 @@ Panel {
     running: false
     onExited: function() { root.finishBadgeSave() }
     stdout: StdioCollector { waitForEnd: true }
-    stderr: StdioCollector { waitForEnd: true; onStreamFinished: function() { if (text.trim().length) console.warn("Gmailbox badge save failed: " + text.trim()) } }
+    stderr: StdioCollector { waitForEnd: true; onStreamFinished: function() { if (text.trim().length) console.warn("Mailbox badge save failed: " + text.trim()) } }
   }
 
   Process {
@@ -251,6 +251,7 @@ Panel {
   }
   function openAccountInbox(account) {
     if (!account) return
+    if (account.inboxUrl) { Quickshell.execDetached(["xdg-open", account.inboxUrl]); return }
     Quickshell.execDetached(["node", root.bridgePendingBin, account.email])
     Quickshell.execDetached(["xdg-open", "https://mail.google.com/mail/?authuser=" + encodeURIComponent(account.email) + "#inbox"])
   }
@@ -260,13 +261,20 @@ Panel {
       root.openAccountInbox(account)
       return
     }
+    if (account && account.inboxUrl) { Quickshell.execDetached(["xdg-open", account.inboxUrl]); return }
     var index = account ? account.index : 0
     Quickshell.execDetached(["xdg-open", "https://mail.google.com/mail/u/" + index + "/#inbox"])
   }
   function gmailMessageUrl(email) {
     var direct = String(email && email.url || "")
+    if (email && email.notification && /^https:\/\/(?:mail\.google\.com|app\.hey\.com)\//.test(direct)) return direct
     if (/^https:\/\/mail\.google\.com\/mail\/u\/\d+\/#(?:inbox|all|starred|important|sent|trash|spam|label\/[^/]+)\/[^/?#]+/.test(direct)) return direct
+    if (/^https:\/\/app\.hey\.com\/topics\/\d+/.test(direct)) return direct
     var account = root.accountFor(email.account)
+    if (account && account.provider === "hey") {
+      var heyThread = String(email.threadId || "").replace(/[^0-9]/g, "")
+      return heyThread ? "https://app.hey.com/topics/" + heyThread : ""
+    }
     var index = account && account.index !== null && account.index !== undefined ? account.index : 0
     var thread = String(email.threadId || "").replace(/^#/, "")
     return thread ? "https://mail.google.com/mail/u/" + index + "/#inbox/" + thread : ""
@@ -677,7 +685,7 @@ Panel {
                   maximumLength: 3
                   onEditingFinished: root.saveBadge(parent.account.email, text, parent.account.color)
                 }
-                Text { width: Style.space(150); text: parent.account.email; color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; elide: Text.ElideRight; anchors.verticalCenter: parent.verticalCenter }
+                Text { width: Style.space(150); text: parent.account.label || parent.account.email; color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; elide: Text.ElideRight; anchors.verticalCenter: parent.verticalCenter }
                 Repeater {
                   model: [{ role: "accent", label: "A" }, { role: "red", label: "R" }, { role: "yellow", label: "Y" }, { role: "orange", label: "O" }, { role: "green", label: "G" }, { role: "cyan", label: "C" }, { role: "blue", label: "B" }, { role: "magenta", label: "M" }, { role: "brown", label: "N" }]
                   Rectangle {

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// Native host for Gmailbox Local Bridge. Receives local Gmail DOM snapshots
+// Native host for Mailbox Local Bridge. Receives local Gmail DOM snapshots
 // and stores bounded, private plain-text cache data for the current user.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const CACHE_DIR = path.join(os.homedir(), '.cache', 'omarchy', 'gmailbox');
+const CACHE_DIR = path.join(os.homedir(), '.cache', 'omarchy', 'mailbox');
 const CACHE = path.join(CACHE_DIR, 'bridge.json');
-const SETTINGS = path.join(os.homedir(), '.config', 'omarchy', 'gmailbox.json');
+const SETTINGS = path.join(os.homedir(), '.config', 'omarchy', 'mailbox.json');
 const PENDING = path.join(CACHE_DIR, 'pending-account.json');
 const SLOT_MAP = path.join(CACHE_DIR, 'gmail-slot-accounts.json');
 const PENDING_MAX_AGE_MS = 10 * 60 * 1000;
@@ -41,7 +41,7 @@ function rememberSlot(index, account) {
 function send(message) {
   const encoded = Buffer.from(JSON.stringify(message));
   const size = Buffer.alloc(4); size.writeUInt32LE(encoded.length, 0);
-  process.stdout.write(Buffer.concat([size, encoded]));
+  process.stdout.write(Buffer.concat([size, encoded]), () => process.exit(0));
 }
 function load() {
   try {
@@ -112,7 +112,11 @@ function mergeSnapshot(data, message, prefs) {
   });
   const retained = [...oldByKey.values()].map(row => ({ ...row, presentInLatestSnapshot: false }));
   const merged = {
-    ...previous, account, index: String(message.index || previous.index || '0'),
+    ...previous, account,
+    provider: message.provider === 'hey' ? 'hey' : 'gmail',
+    label: String(message.label || previous.label || account),
+    inboxUrl: String(message.inboxUrl || previous.inboxUrl || ''),
+    index: String(message.index || previous.index || (message.provider === 'hey' ? '' : '0')),
     unread: Number(message.unread || 0), capturedAt: now, emails: fresh.concat(retained)
   };
   if (!prefs.downloadBodies) purgeBodies({ accounts: { [account]: merged } });
@@ -143,13 +147,8 @@ function mergeThreadBody(data, message, prefs) {
   return true;
 }
 
-let input = Buffer.alloc(0);
-process.stdin.on('data', chunk => { input = Buffer.concat([input, chunk]); });
-process.stdin.on('end', () => {
+function handle(message) {
   try {
-    if (input.length < 4) throw new Error('Missing native message');
-    const length = input.readUInt32LE(0);
-    const message = JSON.parse(input.subarray(4, 4 + length).toString('utf8'));
     if (message.type === 'bridge-health' || message.type === 'bridge-diagnostics') {
       const file = path.join(CACHE_DIR, message.type === 'bridge-health' ? 'bridge-health.json' : 'bridge-diagnostics.json');
       fs.mkdirSync(CACHE_DIR, { recursive: true, mode: 0o700 });
@@ -160,22 +159,46 @@ process.stdin.on('end', () => {
     const prefs = settings();
     const data = load();
     const configured = new Set(prefs.configuredAccounts);
-    const knownForIndex = Object.values(data.accounts || {}).find(account => configured.has(account.account) && String(account.index) === String(message.index));
-    const mapped = mappedAccount(message.index);
-    const pending = pendingAccount();
+    const provider = message.provider === 'hey' ? 'hey' : 'gmail';
     const reported = String(message.account || '').toLowerCase();
-    message.account = knownForIndex?.account || (configured.has(mapped) ? mapped : '') || (configured.has(reported) ? reported : '') || pending || (message.accountVerified === true ? reported : '');
-    if (!message.account) throw new Error('Gmail account could not be verified');
-    rememberSlot(message.index, message.account);
-    if (message.type === 'gmailbox-thread-body') {
+    if (provider === 'hey') {
+      message.account = message.accountVerified === true && reported.startsWith('hey:') ? reported : '';
+    } else {
+      const knownForIndex = Object.values(data.accounts || {}).find(account => configured.has(account.account) && String(account.index) === String(message.index));
+      const mapped = mappedAccount(message.index);
+      const pending = pendingAccount();
+      message.account = knownForIndex?.account || (configured.has(mapped) ? mapped : '') || (configured.has(reported) ? reported : '') || pending || (message.accountVerified === true ? reported : '');
+    }
+    message.provider = provider;
+    if (!message.account) throw new Error('Email account could not be verified');
+    if (provider === 'gmail') rememberSlot(message.index, message.account);
+    if (message.type === 'mailbox-thread-body') {
       const saved = mergeThreadBody(data, message, prefs);
       if (saved) save(data);
       send({ ok: true, saved, bodyDownloadsEnabled: prefs.downloadBodies });
       return;
     }
-    if (!Array.isArray(message.emails)) throw new Error('Invalid Gmail snapshot');
+    if (!Array.isArray(message.emails)) throw new Error('Invalid email snapshot');
     const account = mergeSnapshot(data, message, prefs);
     save(data);
     send({ ok: true, bodyDownloadsEnabled: prefs.downloadBodies, allowedThreadIds: account.emails.map(row => row.threadId).filter(Boolean) });
   } catch (error) { send({ ok: false, error: error.message }); }
+}
+
+let input = Buffer.alloc(0);
+let handled = false;
+process.stdin.on('data', chunk => {
+  if (handled) return;
+  input = Buffer.concat([input, chunk]);
+  if (input.length < 4) return;
+  const length = input.readUInt32LE(0);
+  if (input.length < 4 + length) return;
+  handled = true;
+  process.stdin.pause();
+  try {
+    handle(JSON.parse(input.subarray(4, 4 + length).toString('utf8')));
+  } catch (error) { send({ ok: false, error: error.message }); }
+});
+process.stdin.on('end', () => {
+  if (!handled) send({ ok: false, error: 'Missing native message' });
 });

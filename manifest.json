@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "id": "io.github.avillagran.omarchy-gmailbox",
-  "name": "Gmailbox",
+  "id": "io.github.avillagran.omarchy-mailbox",
+  "name": "Mailbox",
   "version": "0.0.1",
   "author": "Andrés Villagrán <andres@villagranquiroz.cl>",
   "license": "MIT",
-  "description": "Native Gmail unread counts and previews from local browser sessions and desktop notifications.",
+  "description": "Native Gmail and HEY unread counts and previews from local browser sessions and desktop notifications.",
   "kinds": ["bar-widget"],
   "entryPoints": {
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {
-    "displayName": "Gmailbox",
-    "description": "Show Gmail unread count and preview emails.",
+    "displayName": "Mailbox",
+    "description": "Show Gmail and HEY unread counts and preview emails.",
     "category": "Social",
     "defaultSection": "right"
   }

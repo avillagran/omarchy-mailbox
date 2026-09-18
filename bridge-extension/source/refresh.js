@@ -1,1 +1,1 @@
-chrome.runtime.sendMessage({ type: 'gmailbox-force-capture' }, () => window.close());
+chrome.runtime.sendMessage({ type: 'mailbox-force-capture' }, () => window.close());

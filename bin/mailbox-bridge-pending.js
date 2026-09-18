@@ -3,7 +3,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const cacheDir = path.join(os.homedir(), '.cache', 'omarchy', 'gmailbox');
+const cacheDir = path.join(os.homedir(), '.cache', 'omarchy', 'mailbox');
 const valid = value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 fs.mkdirSync(cacheDir, { recursive: true, mode: 0o700 });
 if (process.argv[2] === '--slot') {

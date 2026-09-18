@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""gmailbox — fetch Gmail emails via Chrome DevTools Protocol.
+"""mailbox — fetch Gmail emails via Chrome DevTools Protocol.
 
 Launches Chromium with remote debugging, connects via CDP,
 executes JavaScript in the Gmail page to extract email data.
@@ -12,7 +12,7 @@ import subprocess
 import tempfile
 import time
 
-CACHE = "/tmp/gmailbox-cache.json"
+CACHE = "/tmp/mailbox-cache.json"
 CACHE_TTL = 300  # 5 minutes default
 CHROMIUM_BIN = os.environ.get("CHROMIUM_BIN", "/usr/bin/chromium")
 CHROMIUM_PROFILE = os.path.expanduser("~/.config/chromium")
@@ -44,7 +44,7 @@ def write_cache(data):
 
 def fetch_via_cdp():
     """Use Chrome DevTools Protocol to extract email data from Gmail."""
-    tmpdir = tempfile.mkdtemp(prefix="gmailbox-")
+    tmpdir = tempfile.mkdtemp(prefix="mailbox-")
     try:
         # Copy essential profile files
         dst_default = os.path.join(tmpdir, "Default")

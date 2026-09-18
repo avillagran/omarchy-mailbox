@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* gmailbox-notify — watch for Chrome Gmail notifications, trigger refresh.
+/* mailbox-notify — watch for Chrome Gmail notifications, trigger refresh.
  * Listens on D-Bus for Chrome notifications with "mail.google.com" in the body.
  * When detected, writes a trigger file that the QML timer checks.
  */
@@ -7,7 +7,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const TRIGGER = '/tmp/gmailbox-trigger';
+const TRIGGER = '/tmp/mailbox-trigger';
 const COOLDOWN = 10; // seconds between triggers
 
 let lastTrigger = 0;

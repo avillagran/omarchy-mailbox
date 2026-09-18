@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Gmailbox — extract unread Gmail Inbox rows through an isolated CDP session.
+/* Mailbox — extract unread Gmail Inbox rows through an isolated CDP session.
  *
  * The default browser is discovered at runtime. Each signed-in Gmail account is
  * read from /mail/u/<index>/ without touching a visible browser tab.
@@ -10,20 +10,20 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const DEBUG_PORT = Number(process.env.GMAILBOX_DEBUG_PORT || 9321);
-const SETTINGS_FILE = path.join(os.homedir(), '.config', 'omarchy', 'gmailbox.json');
+const DEBUG_PORT = Number(process.env.MAILBOX_DEBUG_PORT || 9321);
+const SETTINGS_FILE = path.join(os.homedir(), '.config', 'omarchy', 'mailbox.json');
 function configuredMessageLimit() {
   try { return Math.max(1, Math.min(Number(JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')).maxMessagesPerAccount || 50), 200)); } catch (_) { return 50; }
 }
 const MAX_MESSAGES = configuredMessageLimit();
-const MAX_ACCOUNTS = Math.max(1, Math.min(Number(process.env.GMAILBOX_MAX_ACCOUNTS || 8), 12));
-const CACHE_FILE = path.join(os.homedir(), '.cache', 'omarchy', 'gmailbox', 'inbox.json');
-const CACHE_TTL_MS = Number(process.env.GMAILBOX_CACHE_TTL_MS || 300000);
-const BRIDGE_FILE = path.join(os.homedir(), '.cache', 'omarchy', 'gmailbox', 'bridge.json');
+const MAX_ACCOUNTS = Math.max(1, Math.min(Number(process.env.MAILBOX_MAX_ACCOUNTS || 8), 12));
+const CACHE_FILE = path.join(os.homedir(), '.cache', 'omarchy', 'mailbox', 'inbox.json');
+const CACHE_TTL_MS = Number(process.env.MAILBOX_CACHE_TTL_MS || 300000);
+const BRIDGE_FILE = path.join(os.homedir(), '.cache', 'omarchy', 'mailbox', 'bridge.json');
 const BRIDGE_MAX_AGE_MS = 10 * 60 * 1000;
 const NOTIFICATION_HISTORY_DIR = path.join(os.homedir(), '.local', 'state', 'omarchy', 'notifications', 'history');
 const NOTIFICATION_RETENTION_MS = 24 * 60 * 60 * 1000;
-const CACHE_REGRESSION_GUARD_MS = Number(process.env.GMAILBOX_CACHE_REGRESSION_GUARD_MS || 3600000);
+const CACHE_REGRESSION_GUARD_MS = Number(process.env.MAILBOX_CACHE_REGRESSION_GUARD_MS || 3600000);
 const FORCE_REFRESH = process.argv.includes('--refresh');
 
 function commandExists(command) {
@@ -43,7 +43,7 @@ function desktopCommand(desktop) {
   return '';
 }
 function browserCandidates() {
-  if (process.env.GMAILBOX_BROWSER && process.env.GMAILBOX_PROFILE) return [{ binary: process.env.GMAILBOX_BROWSER, profile: process.env.GMAILBOX_PROFILE }];
+  if (process.env.MAILBOX_BROWSER && process.env.MAILBOX_PROFILE) return [{ binary: process.env.MAILBOX_BROWSER, profile: process.env.MAILBOX_PROFILE }];
   const desktop = defaultDesktop();
   const preferred = desktopCommand(desktop);
   const candidates = [];
@@ -73,6 +73,13 @@ function badgePreferences() {
     return settings?.accounts && typeof settings.accounts === 'object' ? settings.accounts : {};
   } catch (_) { return {}; }
 }
+function notificationDestination(note) {
+  const text = `${note.body || ''} ${note.summary || ''} ${note.execArgv || ''}`;
+  const matches = text.match(/https:\/\/(?:mail\.google\.com|app\.hey\.com)(?:\/[^\s<>"']*)?/gi) || [];
+  if (matches.length) return matches[0].replace(/[),.;]+$/, '');
+  if (/\bhey\b|app\.hey\.com/i.test(text)) return 'https://app.hey.com/';
+  return 'https://mail.google.com/mail/';
+}
 function defaultInitials(email) {
   const parts = String(email || '').split('@');
   const domain = (parts[1] || '').split('.')[0].replace(/[^a-z0-9]/gi, '');
@@ -98,11 +105,11 @@ function overlayDesktopNotifications(result) {
     const snapshotAt = Math.max(0, ...(result.accounts || []).map(account => Number(account.capturedAt || account.lastCapturedAt || result.cachedAt || 0)));
     const events = fs.readdirSync(NOTIFICATION_HISTORY_DIR).filter(name => name.endsWith('.json')).map(name => JSON.parse(fs.readFileSync(path.join(NOTIFICATION_HISTORY_DIR, name), 'utf8'))).filter(note => {
       const text = `${note.app || ''} ${note.summary || ''} ${note.body || ''}`.toLowerCase();
-      return Number(note.timestamp || 0) > Math.max(snapshotAt, Date.now() - NOTIFICATION_RETENTION_MS) && /mail\.google\.com|\bgmail\b/.test(text);
+      return Number(note.timestamp || 0) > Math.max(snapshotAt, Date.now() - NOTIFICATION_RETENTION_MS) && /mail\.google\.com|app\.hey\.com|\bgmail\b|\bhey\b/.test(text);
     }).sort((a, b) => Number(a.timestamp) - Number(b.timestamp)).slice(-MAX_MESSAGES);
     if (!events.length) return result;
-    const notificationEmails = events.map(note => ({ account: '__desktop_notifications__', initials: 'NEW', color: 'accent', notification: true, from: String(note.summary || 'New Gmail notification'), subject: String(note.body || '').replace(/<[^>]*>/g, '').trim(), snippet: `Desktop notification from ${note.app || 'browser'}`, date: '', dateSort: Number(note.timestamp || 0), url: '' }));
-    return { ...result, total: Number(result.total || 0) + events.length, emails: notificationEmails.concat(result.emails || []), desktopNotifications: events.length, message: [result.message || '', `${events.length} new Gmail desktop notification${events.length === 1 ? '' : 's'} pending Inbox reconciliation.`].filter(Boolean).join(' ') };
+    const notificationEmails = events.map(note => ({ account: '__desktop_notifications__', initials: 'NEW', color: 'accent', notification: true, from: String(note.summary || 'New email notification'), subject: String(note.body || '').replace(/<[^>]*>/g, '').trim(), snippet: `Desktop notification from ${note.app || 'browser'}`, date: '', dateSort: Number(note.timestamp || 0), url: notificationDestination(note) }));
+    return { ...result, total: Number(result.total || 0) + events.length, emails: notificationEmails.concat(result.emails || []), desktopNotifications: events.length, message: [result.message || '', `${events.length} new desktop email notification${events.length === 1 ? '' : 's'} pending Inbox reconciliation.`].filter(Boolean).join(' ') };
   } catch (_) { return result; }
 }
 function readBridge() {
@@ -115,13 +122,13 @@ function readBridge() {
     const accounts = stored.map(item => {
       const preference = prefs[item.account] || {};
       const isLive = Date.now() - Number(item.capturedAt || 0) <= BRIDGE_MAX_AGE_MS;
-      return { email: item.account, unread: Number(item.unread || 0), initials: String(preference.initials || defaultInitials(item.account)).slice(0, 3), color: ['accent', 'urgent', 'foreground', 'muted', 'red', 'yellow', 'orange', 'green', 'cyan', 'blue', 'magenta', 'brown'].includes(preference.color) ? preference.color : 'accent', index: String(item.index || '0'), bridge: true, connectionState: isLive ? 'live' : 'closed', lastCapturedAt: Number(item.capturedAt || 0) };
+      return { email: item.account, label: String(item.label || item.account), provider: item.provider === 'hey' ? 'hey' : 'gmail', inboxUrl: String(item.inboxUrl || ''), unread: Number(item.unread || 0), initials: String(preference.initials || (item.provider === 'hey' ? 'HEY' : defaultInitials(item.account))).slice(0, 3), color: ['accent', 'urgent', 'foreground', 'muted', 'red', 'yellow', 'orange', 'green', 'cyan', 'blue', 'magenta', 'brown'].includes(preference.color) ? preference.color : 'accent', index: String(item.index || (item.provider === 'hey' ? '' : '0')), bridge: true, connectionState: isLive ? 'live' : 'closed', lastCapturedAt: Number(item.capturedAt || 0) };
     });
     const emails = stored.flatMap(item => (Array.isArray(item.emails) ? item.emails : (Array.isArray(item.messages) ? item.messages : [])).slice(0, MAX_MESSAGES).map(email => {
       const preference = prefs[item.account] || {};
-      return { ...email, dateSort: parseEmailDate(email.date), account: item.account, initials: String(preference.initials || defaultInitials(item.account)).slice(0, 3), color: ['accent', 'urgent', 'foreground', 'muted', 'red', 'yellow', 'orange', 'green', 'cyan', 'blue', 'magenta', 'brown'].includes(preference.color) ? preference.color : 'accent' };
+      return { ...email, dateSort: parseEmailDate(email.date), account: item.account, provider: item.provider === 'hey' ? 'hey' : 'gmail', initials: String(preference.initials || (item.provider === 'hey' ? 'HEY' : defaultInitials(item.account))).slice(0, 3), color: ['accent', 'urgent', 'foreground', 'muted', 'red', 'yellow', 'orange', 'green', 'cyan', 'blue', 'magenta', 'brown'].includes(preference.color) ? preference.color : 'accent' };
     })).sort((a, b) => Number(b.dateSort || 0) - Number(a.dateSort || 0));
-    return overlayDesktopNotifications({ accounts, total: accounts.reduce((sum, account) => sum + account.unread, 0), emails, status: live ? 'ok' : 'cached', source: { browser: 'Local Gmail browser bridge', profile: live ? 'Active Gmail tabs' : 'Saved local cache', known: [] }, cacheState: live ? 'fresh' : 'cached', message: '' });
+    return overlayDesktopNotifications({ accounts, total: accounts.reduce((sum, account) => sum + account.unread, 0), emails, status: live ? 'ok' : 'cached', source: { browser: 'Local browser bridge', profile: live ? 'Active email tabs' : 'Saved local cache', known: [] }, cacheState: live ? 'fresh' : 'cached', message: '' });
   } catch (_) { return null; }
 }
 function applyLocalRead(result) {
@@ -292,7 +299,7 @@ async function scanCandidate(candidate) {
     const cachedAccounts = retainStaleEmails(accounts, emails);
     // Combine account inboxes into one newest-first chronology for the ALL view.
     emails.sort((left, right) => Number(right.dateSort || 0) - Number(left.dateSort || 0));
-    const notificationMessage = permission === 'denied' ? 'Browser notifications are disabled; Gmailbox continues polling every 5 minutes.' : '';
+    const notificationMessage = permission === 'denied' ? 'Browser notifications are disabled; Mailbox continues polling every 5 minutes.' : '';
     return { accounts, total: accounts.reduce((sum, account) => sum + account.unread, 0), emails, status: 'ok', source, cachedAccounts, staleAccounts: [], message: notificationMessage };
   } finally { if (launched) launched.kill('SIGTERM'); }
 }
@@ -302,7 +309,7 @@ async function main() {
   const cached = readCache();
   if (cached) return cached;
   const candidates = browserCandidates();
-  if (!candidates.length) return empty('unavailable', 'No supported browser profile was found. Open Gmail in your default browser, then configure a supported Gmailbox source.');
+  if (!candidates.length) return empty('unavailable', 'No supported browser profile was found. Open Gmail in your default browser, then configure a supported Mailbox source.');
   const errors = [];
   for (const candidate of candidates) {
     try {

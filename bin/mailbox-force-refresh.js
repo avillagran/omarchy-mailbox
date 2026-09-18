@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Opens the Gmailbox extension command in the configured default browser,
+// Opens the Mailbox extension command in the configured default browser,
 // bypassing xdg-open's incorrect scheme handler selection for chrome-extension.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync, spawn } = require('child_process');
-const url = 'chrome-extension://ljaeaiekecpbmpkcknojllebemmbockk/refresh.html';
+const url = 'chrome-extension://kjmlhpckodkmfcjmelnkknkaeiognoed/refresh.html';
 const desktop = execFileSync('xdg-settings', ['get', 'default-web-browser'], { encoding: 'utf8' }).trim();
 const chromiumFamily = /(chrome|chromium|brave|vivaldi|microsoft-edge)/i;
 if (!chromiumFamily.test(desktop)) throw new Error(`The default browser does not support the installed Chromium extension: ${desktop}`);

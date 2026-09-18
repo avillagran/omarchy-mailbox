@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-/* Gmailbox badge preferences: per-account initials and semantic color role. */
+/* Mailbox badge preferences: per-account initials and semantic color role. */
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const file = path.join(os.homedir(), '.config', 'omarchy', 'gmailbox.json');
+const file = path.join(os.homedir(), '.config', 'omarchy', 'mailbox.json');
 const colors = new Set(['accent', 'urgent', 'foreground', 'muted', 'red', 'yellow', 'orange', 'green', 'cyan', 'blue', 'magenta', 'brown']);
 
 function read() {
@@ -22,7 +22,7 @@ function write(value) {
   fs.renameSync(temporary, file);
 }
 function purgeBodies() {
-  const bridge = path.join(os.homedir(), '.cache', 'omarchy', 'gmailbox', 'bridge.json');
+  const bridge = path.join(os.homedir(), '.cache', 'omarchy', 'mailbox', 'bridge.json');
   try {
     const data = JSON.parse(fs.readFileSync(bridge, 'utf8'));
     for (const account of Object.values(data.accounts || {})) {

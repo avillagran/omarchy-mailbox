@@ -1,16 +1,16 @@
 {
   "manifest_version": 3,
-  "name": "Gmailbox Local Bridge",
-  "version": "0.3.2",
-  "description": "Shares Gmail previews and optional local plain-text conversation cache with Omarchy Gmailbox. No passwords, cookies or OAuth tokens leave this computer.",
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtChyzqp5UrJD/AGRYGArponyOQEc6pXN3yOAnFWcsNv9nJxUugvkj655uL2dGYQMOClAsQPZ8Zdgsudk6lpmQcPalXMmdxgbpHuaEMYWxDimA+k+mrDOnX2qzEBm0sn+wNuikDER/FqXBbH7jRUQEYDH5/cMwHFV6nAIaipbW0+j/5YFRVZXsb2lp/JtyZdGlczfxl3bvnXSD9rFc9JW8XnVBRj9Yg8VS9K9rL3+z7vuPrlITBEk20vsHOgF16qeMWhfgTLmcU2bEx927rO4dTN3frMODW2J/6vEncfm+PbraGvbNW5vaejZZxlDyFH9VtRklu01H/FRh65cAhHxQwIDAQAB",
+  "name": "Mailbox Local Bridge",
+  "version": "0.0.1",
+  "description": "Shares Gmail and HEY previews plus optional local plain-text conversation cache with Omarchy Mailbox. No passwords, cookies or OAuth tokens leave this computer.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuCZ97kaAdTlddFcyE1SXI7fqS+D7Y6gNOMyGPancwJ8dXjIs2ETAADIDiY6yi7xPBLTPm9wWq5vws+Z7FPZqalWy1/gSQ0uruLntjDPdXrRgCRSb5LaWCg9MslCeoFtWLXxmEuBy+DXd4qFZQSB+QnWLrcdR3O9Nr9uj7jXuE7upxhEaKOqYUsbcfVDs5VrwOMCC64GWKSXMn1aw8v+PHbgYFyDcAFqtsAfKE4ONdCqibHGoXwBJAw5aLwQJfNh+GGQ9+CsiDW2SsQvHc7WMZX20vCGKyyBlqY9VOITdAQT7EM/gaasK+hpW+YSrU9KeV0Ps8lielj5/GJcFIBFJtwIDAQAB",
   "permissions": ["nativeMessaging", "tabs", "scripting", "alarms"],
-  "host_permissions": ["https://mail.google.com/*"],
+  "host_permissions": ["https://mail.google.com/*", "https://app.hey.com/*"],
   "content_scripts": [{
-    "matches": ["https://mail.google.com/*"],
-    "js": ["content.js"],
+    "matches": ["https://mail.google.com/*", "https://app.hey.com/*"],
+    "js": ["hey-provider.js", "content.js"],
     "run_at": "document_idle"
   }],
   "background": {"service_worker": "background.js"},
-  "action": {"default_title": "Gmailbox Local Bridge"}
+  "action": {"default_title": "Mailbox Local Bridge"}
 }

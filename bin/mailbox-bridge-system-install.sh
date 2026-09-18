@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Installs the signed Gmailbox CRX at Chrome's system extension registry.
+# Installs the signed Mailbox CRX at Chrome's system extension registry.
 # Must run via pkexec; it never reads browser profiles or credentials.
 set -euo pipefail
 ROOT=$(cd -- "$(dirname -- "$0")/.." && pwd -P)
-ID='ljaeaiekecpbmpkcknojllebemmbockk'
-VERSION='0.3.2'
+ID='kjmlhpckodkmfcjmelnkknkaeiognoed'
+VERSION='0.0.1'
 CRX="$ROOT/bridge-extension.crx"
 DEST='/opt/google/chrome/extensions'
 install -d -m 755 "$DEST"

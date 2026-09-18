@@ -1,5 +1,5 @@
-// Gmailbox — native Gmail inbox counter for Omarchy.
-// Reads unread counts + email list via headless Chromium (no browser tab needed).
+// Mailbox — Gmail and HEY inbox counter for Omarchy.
+// Reads local browser-bridge snapshots and desktop email notifications.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -8,7 +8,7 @@ import qs.Commons
 
 BarWidget {
   id: root
-  moduleName: "io.github.avillagran.omarchy-gmailbox"
+  moduleName: "io.github.avillagran.omarchy-mailbox"
 
   property int totalUnread: 0
   property var accounts: []
@@ -32,7 +32,7 @@ BarWidget {
   property bool syncing: false
   property var i18nCatalog: ({})
   property string language: "en"
-  property var msgids: ({"invalidResponse":"Gmailbox received an invalid response.","syncingTabs":"Synchronizing open Gmail tabs…","accountUnreadTooltip":"%1 · %2 unread","gmailUnreadInbox":"Gmail unread Inbox","bodyTooLarge":"Message content is too large to cache. Open it in Gmail.","bodyNotCached":"Message content is not cached. Open it in Gmail or enable downloads in settings.","requestingAuthorization":"Requesting browser installation authorization…","installFailed":"Install failed: %1","updateInstalledRestart":"Extension installed. Restart the browser to finish.","installCancelled":"Install failed or was cancelled: %1","browserRestarted":"Browser restarted · synchronizing Gmail…","restartFailed":"Restart failed: %1","removalReadyRestart":"Extension removal is ready · restart the browser","pluginUpdated":"Extension %1 is active","updateReadyRestart":"Update %1 ready · restart the browser (active %2)","none":"none","updateAvailable":"Update available: %1 → %2","extensionNotInstalled":"Extension not installed","extensionCheckFailed":"Could not check the extension","uninstallFailed":"Uninstall failed: %1","removalPreparedRestart":"Extension removal prepared. Restart the browser to finish.","uninstallCancelled":"Uninstall failed or was cancelled.","saved":"Saved","settingsSaveFailed":"Could not save settings.","shortcutSaveFailed":"Could not save shortcut.","shortcutSaved":"Saved · SUPER+SHIFT+%1","shortcutFailed":"Shortcut failed: %1","installingBridge":"Installing Gmailbox Local Bridge…","removingBridge":"Removing Gmailbox Local Bridge…","restartingBrowser":"Restarting browser…","checkingExtension":"Checking extension…","saving":"Saving…","clearingBodies":"Clearing downloaded content…","useOneLetter":"Use one letter from A to Z.","unreadAll":"%1 unread in all Inboxes","unreadInbox":"%1 unread in Inbox","markAsRead":"Mark as read","connect":"Connect","accountBadges":"Account badges","themeColorsHint":"Choose among 9 live Omarchy theme colors: Accent plus the theme’s basic Red, Yellow, Orange, Green, Cyan, Blue, Magenta, and Brown.","inboxSource":"Inbox source: %1 · profile %2","unknown":"unknown","defaultProfile":"Default","installBridgeHint":"Install Gmailbox Local Bridge in the default browser. It reads only open Gmail tabs locally. Restart that browser once after installing.","installInBrowser":"Install in browser","restartBrowser":"Restart browser","restartBrowserHint":"Restart the default browser after installing or updating Gmailbox Local Bridge.","openClosePanel":"Open/close panel","storedMessagesPerAccount":"Stored messages per account","downloadEmailContent":"Download email content","downloadEmailContentHint":"Store email content locally so messages can be expanded in the panel.","clearDownloadedContent":"Clear downloaded content","gmailNotConnected":"Gmail is not connected for this account. Open its Inbox to connect it.","installBridge":"Install bridge","openGmail":"Open Gmail","openInbox":"Open Inbox","noSubject":"(no subject)"})
+  property var msgids: ({"invalidResponse":"Mailbox received an invalid response.","syncingTabs":"Synchronizing open Gmail tabs…","accountUnreadTooltip":"%1 · %2 unread","gmailUnreadInbox":"Gmail unread Inbox","bodyTooLarge":"Message content is too large to cache. Open it in Gmail.","bodyNotCached":"Message content is not cached. Open it in Gmail or enable downloads in settings.","requestingAuthorization":"Requesting browser installation authorization…","installFailed":"Install failed: %1","updateInstalledRestart":"Extension installed. Restart the browser to finish.","installCancelled":"Install failed or was cancelled: %1","browserRestarted":"Browser restarted · synchronizing Gmail…","restartFailed":"Restart failed: %1","removalReadyRestart":"Extension removal is ready · restart the browser","pluginUpdated":"Extension %1 is active","updateReadyRestart":"Update %1 ready · restart the browser (active %2)","none":"none","updateAvailable":"Update available: %1 → %2","extensionNotInstalled":"Extension not installed","extensionCheckFailed":"Could not check the extension","uninstallFailed":"Uninstall failed: %1","removalPreparedRestart":"Extension removal prepared. Restart the browser to finish.","uninstallCancelled":"Uninstall failed or was cancelled.","saved":"Saved","settingsSaveFailed":"Could not save settings.","shortcutSaveFailed":"Could not save shortcut.","shortcutSaved":"Saved · SUPER+SHIFT+%1","shortcutFailed":"Shortcut failed: %1","installingBridge":"Installing Mailbox Local Bridge…","removingBridge":"Removing Mailbox Local Bridge…","restartingBrowser":"Restarting browser…","checkingExtension":"Checking extension…","saving":"Saving…","clearingBodies":"Clearing downloaded content…","useOneLetter":"Use one letter from A to Z.","unreadAll":"%1 unread in all Inboxes","unreadInbox":"%1 unread in Inbox","markAsRead":"Mark as read","connect":"Connect","accountBadges":"Account badges","themeColorsHint":"Choose among 9 live Omarchy theme colors: Accent plus the theme’s basic Red, Yellow, Orange, Green, Cyan, Blue, Magenta, and Brown.","inboxSource":"Inbox source: %1 · profile %2","unknown":"unknown","defaultProfile":"Default","installBridgeHint":"Install Mailbox Local Bridge in the default browser. It reads only open Gmail tabs locally. Restart that browser once after installing.","installInBrowser":"Install in browser","restartBrowser":"Restart browser","restartBrowserHint":"Restart the default browser after installing or updating Mailbox Local Bridge.","openClosePanel":"Open/close panel","storedMessagesPerAccount":"Stored messages per account","downloadEmailContent":"Download email content","downloadEmailContentHint":"Store email content locally so messages can be expanded in the panel.","clearDownloadedContent":"Clear downloaded content","gmailNotConnected":"Gmail is not connected for this account. Open its Inbox to connect it.","installBridge":"Install bridge","openGmail":"Open Gmail","openInbox":"Open Inbox","noSubject":"(no subject)"})
   function t(key) { var msgid = root.msgids[key] || key; var selected = root.i18nCatalog[root.language] || {}; return selected[msgid] !== undefined ? selected[msgid] : msgid }
   function tf(key, values) { var result = root.t(key); for (var i = 0; i < values.length; i++) result = result.replace("%" + (i + 1), values[i]); return result }
   FileView { path: Qt.resolvedUrl("i18n.json").toString().replace("file://", ""); printErrors: true; onLoaded: { try { root.i18nCatalog = JSON.parse(text()) } catch (_) { root.i18nCatalog = ({}) } } }
@@ -48,7 +48,7 @@ BarWidget {
     target: Color
     function onShellValuesChanged() { barThemeColors.reload() }
   }
-  property string binPath: Qt.resolvedUrl("bin/gmailbox.js").toString().replace("file://", "")
+  property string binPath: Qt.resolvedUrl("bin/mailbox.js").toString().replace("file://", "")
 
   function loadThemePalette(raw) { var palette = {}; var lines = String(raw || "").split("\n"); for (var i = 0; i < lines.length; i++) { var match = lines[i].match(/^\s*(red|yellow|orange|green|cyan|blue|magenta|brown)\s*=\s*["']?(#[0-9A-Fa-f]{6})/); if (match) palette[match[1]] = match[2]; } root.themePalette = palette }
   function badgeColor(role) {
@@ -88,8 +88,8 @@ BarWidget {
   }
 
   // --- polling (user-configurable, default 5 min) ---
-  // Cache/bridge reads are local; poll frequently to surface desktop Gmail
-  // notifications even while every Gmail tab is closed.
+  // Cache/bridge reads are local; poll frequently to surface desktop email
+  // notifications even while every supported mail tab is closed.
   property int pollInterval: 15000
   Timer {
     id: pollTimer
