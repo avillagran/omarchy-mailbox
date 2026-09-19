@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.avillagran.omarchy-mailbox",
   "name": "Mailbox",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "author": "Andrés Villagrán <andres@villagranquiroz.cl>",
   "license": "MIT",
   "description": "Native Gmail and HEY unread counts and previews from local browser sessions and desktop notifications.",

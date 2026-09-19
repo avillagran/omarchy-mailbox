@@ -4,7 +4,7 @@
 set -euo pipefail
 ROOT=$(cd -- "$(dirname -- "$0")/.." && pwd -P)
 ID='kjmlhpckodkmfcjmelnkknkaeiognoed'
-VERSION='0.0.2'
+VERSION='0.0.3'
 CRX="$ROOT/bridge-extension.crx"
 DEST='/opt/google/chrome/extensions'
 install -d -m 755 "$DEST"

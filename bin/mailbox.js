@@ -86,19 +86,43 @@ function defaultInitials(email) {
   const local = (parts[0] || '').replace(/[^a-z0-9]/gi, '');
   return (domain.slice(0, 2) || local.slice(0, 2) || '?').toUpperCase();
 }
-function parseEmailDate(value) {
-  const raw = String(value || '').toLowerCase().replace(/\u202f/g, ' ');
+function parseEmailDate(value, reference = Date.now()) {
+  const raw = String(value || '').toLowerCase().replace(/\u202f/g, ' ').trim();
   const spanish = raw.match(/(\d{1,2})\s+(ene|feb|mar|abr|may|jun|jul|ago|sept|set|oct|nov|dic)\s+(\d{4}),\s+(\d{1,2}):(\d{2})\D*(a|p)\.?\s*m?\.?/i);
   const english = raw.match(/(?:[a-z]{3},\s+)?([a-z]{3})\s+(\d{1,2}),\s+(\d{4}),\s+(\d{1,2}):(\d{2})\s*(am|pm)/i);
   const months = { ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5, jul: 6, ago: 7, sept: 8, set: 8, oct: 9, nov: 10, dic: 11, jan: 0, apr: 3, aug: 7, sep: 8, dec: 11 };
   const match = spanish || english;
-  if (!match) return 0;
-  const month = months[spanish ? match[2] : match[1]];
-  const day = Number(spanish ? match[1] : match[2]);
-  const year = Number(match[3]);
-  let hour = Number(match[4]) % 12;
-  if ((spanish ? match[6] : match[6].slice(0, 1)) === 'p') hour += 12;
-  return new Date(year, month, day, hour, Number(match[5])).getTime();
+  if (match) {
+    const month = months[spanish ? match[2] : match[1]];
+    const day = Number(spanish ? match[1] : match[2]);
+    const year = Number(match[3]);
+    let hour = Number(match[4]) % 12;
+    if ((spanish ? match[6] : match[6].slice(0, 1)) === 'p') hour += 12;
+    return new Date(year, month, day, hour, Number(match[5])).getTime();
+  }
+  const base = new Date(Number(reference) || Date.now());
+  const time = raw.match(/^(\d{1,2}):(\d{2})\s*(?:(a|p)(?:\.?\s*m\.?)?)?$/i);
+  if (time) {
+    let hour = Number(time[1]);
+    if (time[3]) { hour %= 12; if (time[3] === 'p') hour += 12; }
+    let result = new Date(base.getFullYear(), base.getMonth(), base.getDate(), hour, Number(time[2])).getTime();
+    // Inbox UIs keep showing yesterday's clock time for several hours after
+    // midnight. A clock value cannot represent a future message.
+    if (result > base.getTime() + 5 * 60 * 1000) result -= 24 * 60 * 60 * 1000;
+    return result;
+  }
+  const monthDay = raw.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(\d{1,2})$/i);
+  const dayMonth = raw.match(/^(\d{1,2})\s+(ene|feb|mar|abr|may|jun|jul|ago|sept|set|oct|nov|dic)$/i);
+  if (monthDay || dayMonth) {
+    const short = monthDay || dayMonth;
+    const month = months[monthDay ? short[1] : short[2]];
+    const day = Number(monthDay ? short[2] : short[1]);
+    let result = new Date(base.getFullYear(), month, day).getTime();
+    if (result > base.getTime() + 36 * 60 * 60 * 1000) result = new Date(base.getFullYear() - 1, month, day).getTime();
+    return result;
+  }
+  const absolute = Date.parse(value);
+  return Number.isFinite(absolute) ? absolute : 0;
 }
 function overlayDesktopNotifications(result) {
   try {
@@ -130,7 +154,7 @@ function readBridge() {
     });
     const emails = stored.flatMap(item => (Array.isArray(item.emails) ? item.emails : (Array.isArray(item.messages) ? item.messages : [])).slice(0, MAX_MESSAGES).map(email => {
       const preference = prefs[item.account] || {};
-      return { ...email, dateSort: parseEmailDate(email.date), account: item.account, provider: item.provider === 'hey' ? 'hey' : 'gmail', initials: String(preference.initials || (item.provider === 'hey' ? 'HEY' : defaultInitials(item.account))).slice(0, 3), color: ['accent', 'urgent', 'foreground', 'muted', 'red', 'yellow', 'orange', 'green', 'cyan', 'blue', 'magenta', 'brown'].includes(preference.color) ? preference.color : 'accent' };
+      return { ...email, dateSort: Number(email.dateTimestamp || 0) || parseEmailDate(email.date, item.capturedAt), account: item.account, provider: item.provider === 'hey' ? 'hey' : 'gmail', initials: String(preference.initials || (item.provider === 'hey' ? 'HEY' : defaultInitials(item.account))).slice(0, 3), color: ['accent', 'urgent', 'foreground', 'muted', 'red', 'yellow', 'orange', 'green', 'cyan', 'blue', 'magenta', 'brown'].includes(preference.color) ? preference.color : 'accent' };
     })).sort((a, b) => Number(b.dateSort || 0) - Number(a.dateSort || 0));
     return overlayDesktopNotifications({ accounts, total: accounts.reduce((sum, account) => sum + account.unread, 0), emails, status: live ? 'ok' : 'cached', source: { browser: 'Local browser bridge', profile: live ? 'Active email tabs' : 'Saved local cache', known: [] }, cacheState: live ? 'fresh' : 'cached', message: '' });
   } catch (_) { return null; }

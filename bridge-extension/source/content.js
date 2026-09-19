@@ -55,11 +55,15 @@
     const direct = directLink(row);
     const threadId = rowThreadId(row);
     const url = direct || (threadId ? `https://mail.google.com/mail/u/${accountIndex()}/#inbox/${threadId}` : '');
+    const dateNode = row.querySelector('.xW span[title], .xW[title], .xW span, .xW');
+    const exactDate = dateNode?.getAttribute?.('datetime') || dateNode?.getAttribute?.('title') || '';
+    const dateTimestamp = Date.parse(exactDate);
     return {
       from: text(row.querySelector('.yP, .zF, [email]')),
       subject: text(row.querySelector('.bog, [data-thread-id] .bog')),
       snippet: text(row.querySelector('.y2')),
-      date: text(row.querySelector('.xW, .xW span')),
+      date: text(dateNode),
+      dateTimestamp: Number.isFinite(dateTimestamp) ? dateTimestamp : 0,
       unread: row.classList.contains('zE') || row.getAttribute('aria-label')?.toLowerCase().includes('unread') || false,
       threadId,
       url

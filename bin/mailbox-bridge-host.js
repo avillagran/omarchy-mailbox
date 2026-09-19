@@ -108,7 +108,7 @@ function mergeSnapshot(data, message, prefs) {
     return {
       ...old,
       from: String(raw.from || ''), subject: String(raw.subject || ''), snippet: String(raw.snippet || ''),
-      date: String(raw.date || ''), unread: raw.unread === true,
+      date: String(raw.date || ''), dateTimestamp: Number(raw.dateTimestamp || old.dateTimestamp || 0), unread: raw.unread === true,
       threadId: String(raw.threadId || '').replace(/^#/, ''), url: String(raw.url || ''),
       key, firstSeenAt: Number(old.firstSeenAt || now), lastSeenAt: now, presentInLatestSnapshot: true
     };

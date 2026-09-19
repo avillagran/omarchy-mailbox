@@ -77,6 +77,8 @@
     const url = absoluteUrl(link?.getAttribute?.('href') || '', pageUrl);
     const threadId = threadIdFromUrl(url);
     const dateNode = first(row, ['.posting__time', 'time[datetime]', 'time']);
+    const exactDate = String(dateNode?.getAttribute?.('datetime') || dateNode?.getAttribute?.('title') || '');
+    const dateTimestamp = Date.parse(exactDate);
     const unseen = first(row, ['.posting__status--unseen', '[data-unseen]', '[aria-label*="unread" i]']);
     const inUnreadSection = Boolean(row?.closest?.('.inbox-unseens, .postings--unread'));
     return {
@@ -84,6 +86,7 @@
       subject: text(first(row, ['.posting__title', '.posting__headline', '[data-subject]'])),
       snippet: text(first(row, ['.posting__summary', '.posting__note', '[data-snippet]'])),
       date: text(dateNode) || String(dateNode?.getAttribute?.('datetime') || ''),
+      dateTimestamp: Number.isFinite(dateTimestamp) ? dateTimestamp : 0,
       unread: Boolean(unseen || (inUnreadSection && !row?.hasAttribute?.('data-seen'))),
       threadId,
       url

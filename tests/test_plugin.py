@@ -158,6 +158,7 @@ assert.deepEqual(snapshot.emails[0], {
   subject: 'Design review notes',
   snippet: 'The latest proposal is ready.',
   date: '4:45 PM',
+  dateTimestamp: Date.parse('2026-09-17T16:45:00Z'),
   unread: true,
   threadId: '12345',
   url: 'https://app.hey.com/topics/12345'
@@ -185,8 +186,8 @@ def test_marketplace_structure():
   marketplace_manifests = [path for path in ROOT.rglob("manifest.json") if len(path.relative_to(ROOT).parts) <= 2]
   check("marketplace sees exactly one root plugin manifest", marketplace_manifests == [ROOT / "manifest.json"], str(marketplace_manifests))
   check("marketplace plugin ID is namespaced and non-reserved", manifest["id"].startswith("io.github.avillagran.") and not manifest["id"].startswith("omarchy."))
-  check("plugin version advances after first release", manifest["version"] == "0.0.2", manifest["version"])
-  check("extension version advances with notification health", json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())["version"] == "0.0.2")
+  check("plugin version advances after sorting fix", manifest["version"] == "0.0.3", manifest["version"])
+  check("extension version advances with exact message timestamps", json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())["version"] == "0.0.3")
   check("README documents Gmail and HEY support", "Gmail and HEY" in readme and "https://app.hey.com/*" in readme)
   check("marketplace root README documents installation", "## Installation" in readme and "omarchy plugin add" in readme)
   check("marketplace root README documents removal", "## Removal" in readme and "omarchy plugin remove" in readme)
@@ -244,6 +245,16 @@ def test_notification_reconciliation():
     data = json.loads(result.stdout)
     check("notification survives until every account has reconciled it", data.get("desktopNotifications") == 1, str(data))
 
+    for notification_file in history.iterdir():
+      notification_file.unlink()
+    (cache / "bridge.json").write_text(json.dumps({"accounts": {
+      "before-midnight@example.test": {"account": "before-midnight@example.test", "capturedAt": 1789788600000, "emails": [{"threadId": "late", "subject": "Late yesterday", "date": "11:00 PM"}]},
+      "after-midnight@example.test": {"account": "after-midnight@example.test", "capturedAt": 1789788600000, "emails": [{"threadId": "new", "subject": "New today", "date": "12:10 AM"}]}
+    }}))
+    result = run(["node", str(ROOT / "bin/mailbox.js")], env={**os.environ, "HOME": str(home), "MAILBOX_CACHE_TTL_MS": "0"})
+    data = json.loads(result.stdout)
+    check("time-only dates cross midnight in chronological order", [row["subject"] for row in data["emails"]] == ["New today", "Late yesterday"], str(data["emails"]))
+
 
 def test_native_host():
   host_source = (ROOT / "bin/mailbox-bridge-host.js").read_text()
@@ -280,7 +291,7 @@ def test_native_host():
 
     settings["downloadBodies"] = True
     (config / "mailbox.json").write_text(json.dumps(settings))
-    hey_email = {"threadId": "12345", "from": "HEY Sender", "subject": "HEY subject", "date": "4:45 PM", "unread": True, "url": "https://app.hey.com/topics/12345"}
+    hey_email = {"threadId": "12345", "from": "HEY Sender", "subject": "HEY subject", "date": "4:45 PM", "dateTimestamp": 4102444800200, "unread": True, "url": "https://app.hey.com/topics/12345"}
     response = native_message(home, {"type": "mailbox-snapshot", "provider": "hey", "account": "hey:andres@example.com", "label": "andres@example.com", "accountVerified": True, "index": "", "inboxUrl": "https://app.hey.com/", "notificationPermission": "granted", "unread": 1, "emails": [hey_email]})
     check("verified HEY account snapshot is accepted", response.get("ok") is True, str(response))
     cache = json.loads(cache_file.read_text())
@@ -294,6 +305,8 @@ def test_native_host():
     check("HEY account reaches the widget model", rendered_hey and rendered_hey.get("label") == "andres@example.com" and rendered_hey.get("inboxUrl") == "https://app.hey.com/", str(rendered.get("accounts")))
     check("notification health reaches the widget model", rendered_hey and rendered_hey.get("notificationPermission") == "granted" and rendered_hey.get("notificationHealthy") is True, str(rendered_hey))
     check("HEY direct topic reaches the widget model", any(email.get("url") == "https://app.hey.com/topics/12345" for email in rendered["emails"]))
+    rendered_accounts = [email.get("account") for email in rendered["emails"]]
+    check("ALL view interleaves providers by exact date", rendered_accounts[0] == "hey:andres@example.com" and "real@example.com" in rendered_accounts[1:], str(rendered_accounts))
     modes = [stat.S_IMODE(path.stat().st_mode) for path in (home / ".cache/omarchy/mailbox").iterdir() if path.is_file()]
     check("native cache files use mode 0600", all(mode == 0o600 for mode in modes), str(modes))
 
