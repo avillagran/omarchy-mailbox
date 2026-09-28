@@ -5,21 +5,20 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const id = 'kjmlhpckodkmfcjmelnkknkaeiognoed';
-const latestVersion = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'bridge-extension', 'source', 'manifest.json'), 'utf8')).version;
+const root = path.resolve(__dirname, '..');
+const extensionPath = path.join(root, 'bridge-extension', 'source');
+const hostPath = path.join(root, 'bin', 'mailbox-bridge-host.js');
+const latestVersion = JSON.parse(fs.readFileSync(path.join(extensionPath, 'manifest.json'), 'utf8')).version;
 let browser = '';
 try { browser = execFileSync('xdg-settings', ['get', 'default-web-browser'], { encoding: 'utf8' }).trim(); } catch (_) {}
 
 let profileRoot;
-let registryFiles;
 if (/brave/i.test(browser)) {
   profileRoot = path.join(os.homedir(), '.config', 'BraveSoftware', 'Brave-Browser');
-  registryFiles = [`/opt/brave.com/brave/extensions/${id}.json`];
 } else if (/chromium/i.test(browser)) {
   profileRoot = path.join(os.homedir(), '.config', 'chromium');
-  registryFiles = [`/usr/share/chromium/extensions/${id}.json`, `/etc/chromium/extensions/${id}.json`];
 } else {
   profileRoot = path.join(os.homedir(), '.config', 'google-chrome');
-  registryFiles = [`/opt/google/chrome/extensions/${id}.json`];
 }
 
 let profile = 'Default';
@@ -29,21 +28,35 @@ try {
 } catch (_) {}
 let loadedVersion = '';
 let stagedVersion = '';
+let active = false;
+let loadedPath = '';
+let unpacked = false;
 try {
   const prefs = JSON.parse(fs.readFileSync(path.join(profileRoot, profile, 'Preferences'), 'utf8'));
   const setting = prefs.extensions?.settings?.[id] || {};
   loadedVersion = setting.manifest?.version || '';
   stagedVersion = setting.idle_install_info?.manifest?.version || '';
+  active = setting.state === 1;
+  loadedPath = setting.path || '';
+  unpacked = setting.location === 4 && loadedPath === extensionPath;
 } catch (_) {}
-let registeredVersion = '';
-for (const file of registryFiles) {
-  try {
-    registeredVersion = JSON.parse(fs.readFileSync(file, 'utf8')).external_version || '';
-    if (registeredVersion) break;
-  } catch (_) {}
-}
-const installed = Boolean(loadedVersion || registeredVersion);
-const upToDate = loadedVersion === latestVersion;
-const removalReady = Boolean(loadedVersion && !registeredVersion);
-const updateReady = !removalReady && (stagedVersion === latestVersion || registeredVersion === latestVersion) && !upToDate;
-console.log(JSON.stringify({ browser: browser || 'unknown', profile, installed, loadedVersion, stagedVersion, registeredVersion, latestVersion, upToDate, updateReady, removalReady }));
+// Chromium does not cache the manifest for unpacked extensions in Preferences.
+// Read the bundled manifest only for an entry loaded from this exact directory.
+if (unpacked) loadedVersion = latestVersion;
+const nativeFile = path.join(profileRoot, 'NativeMessagingHosts', 'io.github.avillagran.mailbox.json');
+let nativeReady = false;
+try {
+  const manifest = JSON.parse(fs.readFileSync(nativeFile, 'utf8'));
+  nativeReady = manifest.path === hostPath && manifest.allowed_origins?.includes(`chrome-extension://${id}/`)
+    && fs.statSync(hostPath).isFile() && (fs.statSync(hostPath).mode & 0o111) !== 0;
+} catch (_) {}
+const installed = Boolean(loadedPath || loadedVersion);
+const legacyRoot = process.env.MAILBOX_LEGACY_REGISTRY_ROOT || '/';
+const legacyFiles = /brave/i.test(browser) ? ['opt/brave.com/brave/extensions']
+  : /chromium/i.test(browser) ? ['usr/share/chromium/extensions', 'etc/chromium/extensions']
+  : ['opt/google/chrome/extensions'];
+const legacyRegistration = legacyFiles.some(dir => fs.existsSync(path.join(legacyRoot, dir, `${id}.json`)));
+const upToDate = active && nativeReady && unpacked && loadedVersion === latestVersion && !legacyRegistration;
+const removalReady = installed && !nativeReady && fs.existsSync(path.join(os.homedir(), '.config', 'omarchy', 'mailbox-bridge-removing'));
+const updateReady = !removalReady && installed && !upToDate;
+console.log(JSON.stringify({ browser: browser || 'unknown', profile, installed, loadedVersion, stagedVersion, registeredVersion: '', latestVersion, upToDate, updateReady, removalReady, legacyRegistration }));

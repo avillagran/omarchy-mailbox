@@ -24,11 +24,11 @@ The preview uses fictional `.test` accounts and sample messages; it contains no 
 ## Requirements
 
 - Omarchy Quattro with the plugin-enabled Quickshell shell.
-- Node.js, Python 3, `pkexec`, and `xdg-settings` from the standard Omarchy environment.
+- Node.js, Python 3, and `xdg-settings` from the standard Omarchy environment.
 - Google Chrome, Chromium, or Brave with an existing Gmail or HEY session.
-- A browser restart after installing, updating, or removing the local bridge extension.
+- A one-time manual **Load unpacked** action in the browser's Extensions page.
 
-The browser bridge uses the bundled signed CRX and a Native Messaging host. Installing or removing the system extension registration requests explicit polkit authorization through `pkexec`.
+The browser bridge uses a user-owned Native Messaging host and the bundled unpacked extension source. It never asks for administrator access or installs system browser policies. Chrome, Chromium and Brave deliberately require the user to enable Developer mode and select the unpacked folder in their own browser.
 
 ## Installation
 
@@ -36,7 +36,9 @@ The browser bridge uses the bundled signed CRX and a Native Messaging host. Inst
 omarchy plugin add https://github.com/avillagran/omarchy-mailbox --enable
 ```
 
-Open Mailbox preferences from the bar, select **Install in browser**, approve the polkit prompt, and restart the browser once. Open each Gmail account and the HEY Imbox normally so Mailbox can verify and discover them. The installation does not ask for email credentials and does not copy browser cookies.
+Open Mailbox preferences from the bar and select **Prepare bridge**. This writes only user-owned Native Messaging manifests. The extension folder path is shown below the bridge status and can be selected/copied. In **the same browser selected as the default**, open `chrome://extensions` (in Brave use `brave://extensions`), turn on **Developer mode**, click **Load unpacked**, and select the displayed `bridge-extension/source` directory (the directory containing `manifest.json`). Confirm that **Mailbox Local Bridge** is enabled. Restart the browser once so the Native Messaging host is picked up, then open each Gmail account and the HEY Imbox normally. Mailbox verifies and discovers those pages; it does not ask for email credentials or copy browser cookies.
+
+After a plugin update, click **Reload** on the Mailbox Local Bridge card in the Extensions page and refresh the mail pages. Reloading an unpacked extension updates its background script and content scripts; a browser restart alone does not reliably do this. If the browser profile changes, load the extension in that profile too. Do not move or delete the installed plugin directory while the extension is loaded. If Mailbox warns about a legacy system registration from an earlier release, have an administrator remove that registration first; preparing the user-owned host cannot override a system-enforced extension.
 
 ## Usage
 
@@ -57,23 +59,22 @@ Preferences are stored in `~/.config/omarchy/mailbox.json`. Bounded message prev
 
 The extension permissions are limited to Native Messaging, tabs, scripting, alarms, `https://mail.google.com/*`, and `https://app.hey.com/*`. The plugin and extension execute as unsandboxed local code, like other Omarchy plugins, so review the source and declared capabilities before installation.
 
-## External dependencies and privileged actions
+## External dependencies and browser setup
 
-Mailbox depends on the local browser and Omarchy tools listed under Requirements. It makes no network download during plugin setup. The only privileged action is writing or removing the browser’s external-extension registration under `/opt/google/chrome/extensions/`; the UI runs the bundled fixed-path installer through `pkexec` after explicit user action.
+Mailbox depends on the local browser and Omarchy tools listed under Requirements. It makes no network download during plugin setup and never executes as root. The user explicitly prepares a per-user Native Messaging host and loads the unpacked extension in the browser UI. Loading an unpacked extension requires enabling browser Developer mode. The bundled CRX is not used by this installation path.
 
 ## Removal
 
-Remove the browser bridge and generated shortcut before removing the plugin:
+First remove **Mailbox Local Bridge** from each browser profile in `chrome://extensions` (or `brave://extensions`). Then remove the local host and generated shortcut **before** removing the plugin:
 
 ```bash
 PLUGIN="$HOME/.config/omarchy/plugins/io.github.avillagran.omarchy-mailbox"
 node "$PLUGIN/bin/mailbox-bridge-install.js" --uninstall
-pkexec "$PLUGIN/bin/mailbox-bridge-system-install.sh" --uninstall
 node "$PLUGIN/bin/mailbox-keybind.js" --uninstall
 omarchy plugin remove io.github.avillagran.omarchy-mailbox
 ```
 
-Restart the browser to complete extension removal. User preferences and cache are deliberately retained. Delete them only when you no longer want the saved configuration or previews:
+Restart the browser to complete extension removal. Existing users who previously installed a system-wide Chrome external registration must ask their system administrator to remove that legacy registration separately; the new rootless installer cannot modify system directories. User preferences and cache are deliberately retained. Delete them only when you no longer want the saved configuration or previews:
 
 ```bash
 rm -f ~/.config/omarchy/mailbox.json
