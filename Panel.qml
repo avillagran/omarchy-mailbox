@@ -34,14 +34,13 @@ Panel {
   property string binPath: Qt.resolvedUrl("bin/mailbox.js").toString().replace("file://", "")
   property string settingsBin: Qt.resolvedUrl("bin/mailbox-settings.js").toString().replace("file://", "")
   property string bridgeInstallBin: Qt.resolvedUrl("bin/mailbox-bridge-install.js").toString().replace("file://", "")
-  property string bridgeSystemInstallBin: Qt.resolvedUrl("bin/mailbox-bridge-system-install.sh").toString().replace("file://", "")
-  property string browserRestartBin: Qt.resolvedUrl("bin/mailbox-browser-restart.py").toString().replace("file://", "")
+  property string bridgeExtensionPath: Qt.resolvedUrl("bridge-extension/source").toString().replace("file://", "")
   property string forceRefreshBin: Qt.resolvedUrl("bin/mailbox-force-refresh.js").toString().replace("file://", "")
-  property string browserRestartState: ""
   property string bridgeInstallState: ""
   property string bridgeStatusText: ""
   property bool bridgeUpToDate: false
   property bool bridgeInstalled: false
+  property bool bridgeLegacyRegistration: false
   property bool bridgeStatusKnown: false
   property string bridgeStatusBin: Qt.resolvedUrl("bin/mailbox-bridge-status.js").toString().replace("file://", "")
   property string keybindBin: Qt.resolvedUrl("bin/mailbox-keybind.js").toString().replace("file://", "")
@@ -132,46 +131,20 @@ Panel {
     id: bridgeInstallProc
     command: ["node", root.bridgeInstallBin]
     running: false
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: { root.bridgeInstallState = root.t("requestingAuthorization"); systemBridgeInstallProc.running = true }
-    }
+    onExited: function(exitCode) { if (exitCode === 0) root.bridgeInstallState = root.tf("In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.", [root.bridgeExtensionPath]); bridgeStatusRetry.restart() }
+    stdout: StdioCollector { waitForEnd: true }
     stderr: StdioCollector {
       waitForEnd: true
       onStreamFinished: { if (text.trim().length) root.bridgeInstallState = root.tf("installFailed", [text.trim()]) }
     }
   }
 
-  Process {
-    id: systemBridgeInstallProc
-    command: ["pkexec", root.bridgeSystemInstallBin]
-    running: false
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: function() {
-        root.bridgeInstallState = root.t("updateInstalledRestart")
-        bridgeStatusRetry.restart()
-      }
-    }
-    stderr: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: { if (text.trim().length) root.bridgeInstallState = root.tf("installCancelled", [text.trim()]) }
-    }
-  }
-
-  Process {
-    id: browserRestartProc
-    command: ["python3", root.browserRestartBin]
-    running: false
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: function() { root.browserRestartState = root.t("browserRestarted"); root.syncing = true; bridgeStatusRetry.restart() } }
-    stderr: StdioCollector { waitForEnd: true; onStreamFinished: { if (text.trim().length) root.browserRestartState = root.tf("restartFailed", [text.trim()]) } }
-  }
 
   Process {
     id: bridgeStatusProc
     command: ["node", root.bridgeStatusBin]
     running: false
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: function() { try { var status = JSON.parse(text); root.bridgeInstalled = status.installed === true; root.bridgeUpToDate = status.upToDate === true; root.bridgeStatusKnown = true; root.bridgeStatusText = status.removalReady ? root.t("removalReadyRestart") : (root.bridgeUpToDate ? root.tf("pluginUpdated", [status.loadedVersion]) : (status.updateReady ? root.tf("updateReadyRestart", [status.stagedVersion || status.registeredVersion, status.loadedVersion || root.t("none")]) : (status.installed ? root.tf("updateAvailable", [status.loadedVersion || status.registeredVersion, status.latestVersion]) : root.t("extensionNotInstalled")))) } catch (_) { root.bridgeInstalled = false; root.bridgeStatusKnown = true; root.bridgeStatusText = root.t("extensionCheckFailed") } } }
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: function() { try { var status = JSON.parse(text); root.bridgeInstalled = status.installed === true; root.bridgeLegacyRegistration = status.legacyRegistration === true; root.bridgeUpToDate = status.upToDate === true; root.bridgeStatusKnown = true; root.bridgeStatusText = status.legacyRegistration ? root.t("A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.") : (status.removalReady ? root.t("Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.") : (root.bridgeUpToDate ? root.tf("pluginUpdated", [status.loadedVersion]) : (status.installed ? root.t("Enable or reload Mailbox Local Bridge in chrome://extensions.") : root.t("extensionNotInstalled")))) } catch (_) { root.bridgeInstalled = false; root.bridgeStatusKnown = true; root.bridgeStatusText = root.t("extensionCheckFailed") } } }
   }
 
   Timer { id: bridgeStatusRetry; interval: 3500; repeat: false; onTriggered: { if (!bridgeStatusProc.running) bridgeStatusProc.running = true } }
@@ -188,15 +161,8 @@ Panel {
     id: bridgeUninstallProc
     command: ["node", root.bridgeInstallBin, "--uninstall"]
     running: false
-    onExited: function(exitCode) { if (exitCode === 0) systemBridgeUninstallProc.running = true }
+    onExited: function(exitCode) { if (exitCode === 0) root.bridgeInstallState = root.t("Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling."); bridgeStatusRetry.restart() }
     stderr: StdioCollector { waitForEnd: true; onStreamFinished: function() { if (text.trim().length) root.bridgeInstallState = root.tf("uninstallFailed", [text.trim()]) } }
-  }
-
-  Process {
-    id: systemBridgeUninstallProc
-    command: ["pkexec", root.bridgeSystemInstallBin, "--uninstall"]
-    running: false
-    onExited: function(exitCode) { root.bridgeInstallState = exitCode === 0 ? root.t("removalPreparedRestart") : root.t("uninstallCancelled"); bridgeStatusRetry.restart() }
   }
 
   Process {
@@ -305,8 +271,8 @@ Panel {
     root.openAccountInbox(account)
   }
   function installBridge() { if (!bridgeInstallProc.running) { root.bridgeInstallState = root.t("installingBridge"); bridgeInstallProc.running = true } }
-  function uninstallBridge() { if (!bridgeUninstallProc.running && !systemBridgeUninstallProc.running) { root.bridgeInstallState = root.t("removingBridge"); bridgeUninstallProc.running = true } }
-  function restartBrowser() { if (!browserRestartProc.running) { root.browserRestartState = root.t("restartingBrowser"); browserRestartProc.running = true } }
+  function uninstallBridge() { if (!bridgeUninstallProc.running) { root.bridgeInstallState = root.t("removingBridge"); bridgeUninstallProc.running = true } }
+
   function checkBridgeStatus() { if (!bridgeStatusProc.running) { root.bridgeStatusKnown = false; root.bridgeStatusText = root.t("checkingExtension"); bridgeStatusProc.running = true } }
   function showSettings() { root.settingsMode = true; root.checkBridgeStatus(); if (!shortcutLoadProc.running) shortcutLoadProc.running = true; if (!root.opened) root.open() }
   function showInbox() { root.settingsMode = false; root.selectedEmailIndex = Math.max(0, Math.min(root.selectedEmailIndex, Math.max(0, root.filteredEmails().length - 1))); Qt.callLater(function() { keyCatcher.forceActiveFocus(); root.ensureSelectedEmailVisible() }) }
@@ -572,8 +538,17 @@ Panel {
               Text { anchors.left: parent.left; anchors.right: uninstallBridgeButton.left; anchors.verticalCenter: parent.verticalCenter; anchors.leftMargin: Style.space(10); anchors.rightMargin: Style.space(6); text: root.bridgeStatusText; color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; font.bold: true; elide: Text.ElideRight }
               Button { id: uninstallBridgeButton; visible: root.bridgeInstalled; anchors.right: parent.right; anchors.rightMargin: Style.space(4); anchors.verticalCenter: parent.verticalCenter; iconText: "󰆴"; bordered: false; onClicked: root.uninstallBridge() }
             }
+            Text {
+              visible: root.bridgeLegacyRegistration
+              width: parent.width
+              text: root.bridgeStatusText
+              wrapMode: Text.WordWrap
+              color: Color.urgent
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+            }
             Rectangle {
-              visible: root.bridgeStatusKnown && !root.bridgeInstalled
+              visible: root.bridgeStatusKnown && !root.bridgeUpToDate
               width: parent.width
               height: bridgeInstallRow.implicitHeight + bridgeInstallStatus.implicitHeight + Style.space(20)
               radius: Style.cornerRadius
@@ -588,7 +563,7 @@ Panel {
                 spacing: Style.space(8)
                 Text {
                   width: parent.width - installBrowserBridgeButton.implicitWidth - Style.space(8)
-                  text: root.t("installBridgeHint")
+                  text: root.t("Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.")
                   wrapMode: Text.WordWrap
                   color: Color.popups.text
                   font.family: Style.font.family
@@ -597,7 +572,7 @@ Panel {
                 }
                 Button {
                   id: installBrowserBridgeButton
-                  text: root.t("installInBrowser")
+                  text: root.t("Prepare bridge")
                   onClicked: root.installBridge()
                   anchors.verticalCenter: parent.verticalCenter
                 }
@@ -612,17 +587,31 @@ Panel {
                 anchors.topMargin: Style.space(4)
                 text: root.bridgeInstallState
                 visible: text.length > 0
-                wrapMode: Text.WordWrap
+                wrapMode: Text.WrapAnywhere
                 color: text.indexOf("failed:") === 0 ? Color.urgent : Color.muted
                 font.family: Style.font.family
                 font.pixelSize: Style.font.caption
               }
             }
-            Row {
+            TextInput {
+              visible: root.bridgeStatusKnown && !root.bridgeUpToDate
               width: parent.width
-              spacing: Style.space(8)
-              Button { text: root.t("restartBrowser"); onClicked: root.restartBrowser() }
-              Text { width: parent.width - Style.space(120); text: root.browserRestartState.length ? root.browserRestartState : root.t("restartBrowserHint"); wrapMode: Text.WordWrap; color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+              text: root.bridgeExtensionPath
+              readOnly: true
+              selectByMouse: true
+              color: Color.popups.text
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              clip: true
+            }
+            Text {
+              visible: root.bridgeInstalled && root.bridgeInstallState.length > 0
+              width: parent.width
+              text: root.bridgeInstallState
+              wrapMode: Text.WrapAnywhere
+              color: Color.muted
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
             }
             Row {
               width: parent.width

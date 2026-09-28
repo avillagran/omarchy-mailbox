@@ -61,7 +61,13 @@
     "Open Gmail": "Open Gmail",
     "Open Inbox": "Open Inbox",
     "(no subject)": "(no subject)",
-    "Enable notifications for this account.": "Enable notifications for this account."
+    "Enable notifications for this account.": "Enable notifications for this account.",
+    "Prepare bridge": "Prepare bridge",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Enable or reload Mailbox Local Bridge in chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension."
   },
   "es": {
     "": {
@@ -125,7 +131,13 @@
     "Open Gmail": "Abrir Gmail",
     "Open Inbox": "Abrir bandeja de entrada",
     "(no subject)": "(sin asunto)",
-    "Enable notifications for this account.": "Activa las notificaciones para esta cuenta."
+    "Enable notifications for this account.": "Activa las notificaciones para esta cuenta.",
+    "Prepare bridge": "Preparar puente",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepara el puente local y carga la extensión en Chrome, Chromium o Brave. No se necesitan permisos de administrador.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "En chrome://extensions, activa el modo de desarrollador, elige Cargar descomprimida y selecciona %1. Tras actualizar, recarga aquí la extensión.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Elimina Mailbox Local Bridge en chrome://extensions para completar la desinstalación.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Activa o recarga Mailbox Local Bridge en chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "Queda un registro antiguo de extensión del sistema. Pide a un administrador que lo elimine antes de cargar la extensión descomprimida."
   },
   "pt": {
     "": {
@@ -189,7 +201,13 @@
     "Open Gmail": "Abra Gmail",
     "Open Inbox": "Abrir caixa de entrada",
     "(no subject)": "(sem assunto)",
-    "Enable notifications for this account.": "Ative as notificações para esta conta."
+    "Enable notifications for this account.": "Ative as notificações para esta conta.",
+    "Prepare bridge": "Prepare bridge",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Enable or reload Mailbox Local Bridge in chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension."
   },
   "fr": {
     "": {
@@ -253,7 +271,13 @@
     "Open Gmail": "Ouvrir Gmail",
     "Open Inbox": "Ouvrir la boîte de réception",
     "(no subject)": "(sans objet)",
-    "Enable notifications for this account.": "Activez les notifications pour ce compte."
+    "Enable notifications for this account.": "Activez les notifications pour ce compte.",
+    "Prepare bridge": "Prepare bridge",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Enable or reload Mailbox Local Bridge in chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension."
   },
   "de": {
     "": {
@@ -317,7 +341,13 @@
     "Open Gmail": "Öffnen Sie Gmail",
     "Open Inbox": "Posteingang öffnen",
     "(no subject)": "(kein Betreff)",
-    "Enable notifications for this account.": "Aktiviere Benachrichtigungen für dieses Konto."
+    "Enable notifications for this account.": "Aktiviere Benachrichtigungen für dieses Konto.",
+    "Prepare bridge": "Prepare bridge",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Enable or reload Mailbox Local Bridge in chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension."
   },
   "it": {
     "": {
@@ -381,7 +411,13 @@
     "Open Gmail": "Apri Gmail",
     "Open Inbox": "Apri Posta in arrivo",
     "(no subject)": "(nessun oggetto)",
-    "Enable notifications for this account.": "Attiva le notifiche per questo account."
+    "Enable notifications for this account.": "Attiva le notifiche per questo account.",
+    "Prepare bridge": "Prepare bridge",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Enable or reload Mailbox Local Bridge in chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension."
   },
   "nl": {
     "": {
@@ -445,7 +481,13 @@
     "Open Gmail": "Open Gmail",
     "Open Inbox": "Open Postvak IN",
     "(no subject)": "(geen onderwerp)",
-    "Enable notifications for this account.": "Schakel meldingen in voor dit account."
+    "Enable notifications for this account.": "Schakel meldingen in voor dit account.",
+    "Prepare bridge": "Prepare bridge",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Enable or reload Mailbox Local Bridge in chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension."
   },
   "pl": {
     "": {
@@ -509,7 +551,13 @@
     "Open Gmail": "Otwórz Gmail",
     "Open Inbox": "Otwórz skrzynkę odbiorczą",
     "(no subject)": "(brak tematu)",
-    "Enable notifications for this account.": "Włącz powiadomienia dla tego konta."
+    "Enable notifications for this account.": "Włącz powiadomienia dla tego konta.",
+    "Prepare bridge": "Prepare bridge",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Enable or reload Mailbox Local Bridge in chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension."
   },
   "ru": {
     "": {
@@ -573,7 +621,13 @@
     "Open Gmail": "Открыть Gmail",
     "Open Inbox": "Открыть входящие",
     "(no subject)": "(без темы)",
-    "Enable notifications for this account.": "Включите уведомления для этой учётной записи."
+    "Enable notifications for this account.": "Включите уведомления для этой учётной записи.",
+    "Prepare bridge": "Prepare bridge",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Enable or reload Mailbox Local Bridge in chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension."
   },
   "ja": {
     "": {
@@ -637,7 +691,13 @@
     "Open Gmail": "Gmailを開く",
     "Open Inbox": "受信箱を開く",
     "(no subject)": "（件名なし）",
-    "Enable notifications for this account.": "このアカウントの通知を有効にしてください。"
+    "Enable notifications for this account.": "このアカウントの通知を有効にしてください。",
+    "Prepare bridge": "Prepare bridge",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Enable or reload Mailbox Local Bridge in chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension."
   },
   "ko": {
     "": {
@@ -701,7 +761,13 @@
     "Open Gmail": "Gmail 열기",
     "Open Inbox": "받은편지함 열기",
     "(no subject)": "(제목 없음)",
-    "Enable notifications for this account.": "이 계정의 알림을 활성화하세요."
+    "Enable notifications for this account.": "이 계정의 알림을 활성화하세요.",
+    "Prepare bridge": "Prepare bridge",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Enable or reload Mailbox Local Bridge in chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension."
   },
   "zh": {
     "": {
@@ -765,7 +831,13 @@
     "Open Gmail": "打开Gmail",
     "Open Inbox": "打开收件箱",
     "(no subject)": "（无主题）",
-    "Enable notifications for this account.": "请为此账户启用通知。"
+    "Enable notifications for this account.": "请为此账户启用通知。",
+    "Prepare bridge": "Prepare bridge",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Enable or reload Mailbox Local Bridge in chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension."
   },
   "ar": {
     "": {
@@ -829,7 +901,13 @@
     "Open Gmail": "افتح Gmail",
     "Open Inbox": "افتح البريد الوارد",
     "(no subject)": "(بدون موضوع)",
-    "Enable notifications for this account.": "فعّل الإشعارات لهذا الحساب."
+    "Enable notifications for this account.": "فعّل الإشعارات لهذا الحساب.",
+    "Prepare bridge": "Prepare bridge",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Enable or reload Mailbox Local Bridge in chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension."
   },
   "tr": {
     "": {
@@ -893,7 +971,13 @@
     "Open Gmail": "Gmail'yi açın",
     "Open Inbox": "Gelen Kutusunu Aç",
     "(no subject)": "(konu yok)",
-    "Enable notifications for this account.": "Bu hesap için bildirimleri etkinleştirin."
+    "Enable notifications for this account.": "Bu hesap için bildirimleri etkinleştirin.",
+    "Prepare bridge": "Prepare bridge",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Enable or reload Mailbox Local Bridge in chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension."
   },
   "sv": {
     "": {
@@ -957,7 +1041,13 @@
     "Open Gmail": "Öppna Gmail",
     "Open Inbox": "Öppna Inkorgen",
     "(no subject)": "(inget ämne)",
-    "Enable notifications for this account.": "Aktivera aviseringar för det här kontot."
+    "Enable notifications for this account.": "Aktivera aviseringar för det här kontot.",
+    "Prepare bridge": "Prepare bridge",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Enable or reload Mailbox Local Bridge in chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension."
   },
   "da": {
     "": {
@@ -1021,7 +1111,13 @@
     "Open Gmail": "Åbn Gmail",
     "Open Inbox": "Åbn Indbakke",
     "(no subject)": "(intet emne)",
-    "Enable notifications for this account.": "Aktivér notifikationer for denne konto."
+    "Enable notifications for this account.": "Aktivér notifikationer for denne konto.",
+    "Prepare bridge": "Prepare bridge",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Enable or reload Mailbox Local Bridge in chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension."
   },
   "no": {
     "": {
@@ -1085,7 +1181,13 @@
     "Open Gmail": "Åpne Gmail",
     "Open Inbox": "Åpne innboks",
     "(no subject)": "(uten emne)",
-    "Enable notifications for this account.": "Aktiver varsler for denne kontoen."
+    "Enable notifications for this account.": "Aktiver varsler for denne kontoen.",
+    "Prepare bridge": "Prepare bridge",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Enable or reload Mailbox Local Bridge in chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension."
   },
   "fi": {
     "": {
@@ -1149,7 +1251,13 @@
     "Open Gmail": "Avaa Gmail",
     "Open Inbox": "Avaa Saapuneet",
     "(no subject)": "(ei aihetta)",
-    "Enable notifications for this account.": "Ota tämän tilin ilmoitukset käyttöön."
+    "Enable notifications for this account.": "Ota tämän tilin ilmoitukset käyttöön.",
+    "Prepare bridge": "Prepare bridge",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Enable or reload Mailbox Local Bridge in chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension."
   },
   "cs": {
     "": {
@@ -1213,6 +1321,12 @@
     "Open Gmail": "Otevřete Gmail",
     "Open Inbox": "Otevřete Doručenou poštu",
     "(no subject)": "(bez předmětu)",
-    "Enable notifications for this account.": "Povolte oznámení pro tento účet."
+    "Enable notifications for this account.": "Povolte oznámení pro tento účet.",
+    "Prepare bridge": "Prepare bridge",
+    "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.": "Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.",
+    "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.": "In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.",
+    "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.": "Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.",
+    "Enable or reload Mailbox Local Bridge in chrome://extensions.": "Enable or reload Mailbox Local Bridge in chrome://extensions.",
+    "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.": "A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension."
   }
 }

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import base64
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -49,14 +51,10 @@ def test_static_files():
   for filename in [*ROOT.glob("bin/*.js"), *ROOT.glob("bridge-extension/source/*.js")]:
     result = run(["node", "--check", str(filename)])
     check(f"JavaScript syntax: {filename.relative_to(ROOT)}", result.returncode == 0, result.stderr)
-  result = run(["bash", "-n", str(ROOT / "bin/mailbox-bridge-system-install.sh")])
-  check("system installer shell syntax", result.returncode == 0, result.stderr)
-  compile((ROOT / "bin/mailbox-browser-restart.py").read_text(), "mailbox-browser-restart.py", "exec")
-  check("browser restart helper Python syntax", True)
-  restart_helper = (ROOT / "bin/mailbox-browser-restart.py").read_text()
-  check("browser restart rescans replacement processes", restart_helper.count("browser_processes()") >= 4)
-  check("browser restart identifies actual executables", "os.readlink(f'/proc/{pid}/exe')" in restart_helper and "cmdline" not in restart_helper)
-  check("browser restart bypasses a surviving browser session", "[browser, 'https://mail.google.com/mail/', 'https://app.hey.com/']" in restart_helper)
+  check("no privileged bridge helper is shipped", not (ROOT / "bin/mailbox-bridge-system-install.sh").exists())
+  check("panel has no privileged bridge process", "systemBridgeInstallProc" not in (ROOT / "Panel.qml").read_text())
+  check("no browser-killing restart helper is shipped", not (ROOT / "bin/mailbox-browser-restart.py").exists())
+  check("panel cannot restart unrelated browsers", "restartBrowser" not in (ROOT / "Panel.qml").read_text())
   shebang_files = [path for path in (ROOT / "bin").iterdir() if path.is_file() and path.read_bytes()[:2] == b"#!"]
   check("all shebang helpers are executable", all(os.access(path, os.X_OK) for path in shebang_files))
   check("no generated Python artifacts", not any(path.suffix == ".pyc" or "__pycache__" in path.parts for path in ROOT.rglob("*")))
@@ -68,7 +66,7 @@ def test_i18n():
   english = catalog["en"]
   keys = set(english) - {""}
   check("i18n has 19 locales", len(catalog) == 19, str(sorted(catalog)))
-  check("i18n has 58 message IDs", len(keys) == 58, str(len(keys)))
+  check("i18n has 64 message IDs", len(keys) == 64, str(len(keys)))
   for locale, translations in catalog.items():
     check(f"i18n coverage: {locale}", set(translations) - {""} == keys)
     check(f"i18n plural header: {locale}", "" in translations)
@@ -89,7 +87,10 @@ def test_versions():
   extension_manifest = json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())
   extension_version = extension_manifest["version"]
   check("extension version in user installer", extension_version in (ROOT / "bin/mailbox-bridge-install.js").read_text())
-  check("extension version in system installer", extension_version in (ROOT / "bin/mailbox-bridge-system-install.sh").read_text())
+  key = base64.b64decode(extension_manifest["key"])
+  calculated_id = "".join("abcdefghijklmnop"[int(nibble, 16)] for nibble in hashlib.sha256(key).hexdigest()[:32])
+  check("unpacked extension key matches native host origin", calculated_id == EXTENSION_ID, calculated_id)
+  check("extension is loaded from the unpacked source directory", (ROOT / "bridge-extension/source/manifest.json").is_file())
   check("HEY is an extension host permission", "https://app.hey.com/*" in extension_manifest["host_permissions"])
   matches = [match for script in extension_manifest["content_scripts"] for match in script["matches"]]
   check("HEY receives the local bridge content script", "https://app.hey.com/*" in matches)
@@ -186,12 +187,12 @@ def test_marketplace_structure():
   marketplace_manifests = [path for path in ROOT.rglob("manifest.json") if len(path.relative_to(ROOT).parts) <= 2]
   check("marketplace sees exactly one root plugin manifest", marketplace_manifests == [ROOT / "manifest.json"], str(marketplace_manifests))
   check("marketplace plugin ID is namespaced and non-reserved", manifest["id"].startswith("io.github.avillagran.") and not manifest["id"].startswith("omarchy."))
-  check("plugin version advances after sorting fix", manifest["version"] == "0.0.3", manifest["version"])
+  check("plugin version advances after rootless browser setup", manifest["version"] == "0.0.4", manifest["version"])
   check("extension version advances with exact message timestamps", json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())["version"] == "0.0.3")
   check("README documents Gmail and HEY support", "Gmail and HEY" in readme and "https://app.hey.com/*" in readme)
   check("marketplace root README documents installation", "## Installation" in readme and "omarchy plugin add" in readme)
   check("marketplace root README documents removal", "## Removal" in readme and "omarchy plugin remove" in readme)
-  check("marketplace root README documents dependencies", "## Requirements" in readme and "## External dependencies and privileged actions" in readme)
+  check("marketplace root README documents dependencies and rootless setup", "## Requirements" in readme and "## External dependencies and browser setup" in readme)
   check("marketplace root license exists", (ROOT / "LICENSE").is_file() and "Andrés Villagrán" in (ROOT / "LICENSE").read_text())
   preview = ROOT / "preview.png"
   header = preview.read_bytes()[:24]
@@ -367,14 +368,64 @@ def test_browser_installer():
     helper = ROOT / "bin/mailbox-bridge-install.js"
     result = run(["node", str(helper)], env=env)
     check("browser bridge installer exits cleanly", result.returncode == 0, result.stderr)
+    data = json.loads(result.stdout)
+    check("installer returns the unpacked Chrome directory", data["extensionPath"] == str(ROOT / "bridge-extension/source"), str(data))
     native = list(config.glob("**/NativeMessagingHosts/io.github.avillagran.mailbox.json"))
     external = list(config.glob(f"**/External Extensions/{EXTENSION_ID}.json"))
     check("browser bridge installs four native manifests", len(native) == 4, str(native))
-    check("browser bridge installs four external manifests", len(external) == 4, str(external))
+    check("native origins match unpacked extension key", all(json.loads(p.read_text())["allowed_origins"] == [f"chrome-extension://{EXTENSION_ID}/"] for p in native))
+    check("browser bridge does not claim to install an external CRX", not external, str(external))
+    chrome = config / "google-chrome"
+    (chrome / "Local State").write_text(json.dumps({"profile": {"last_used": "Default"}}))
+    (chrome / "Default").mkdir()
+    (chrome / "Default/Preferences").write_text(json.dumps({"extensions": {"settings": {
+      EXTENSION_ID: {"path": str(ROOT / "bridge-extension/source"), "location": 4, "state": 1}
+    }}}))
+    fake_bin = home / "bin"
+    fake_bin.mkdir()
+    xdg = fake_bin / "xdg-settings"
+    xdg.write_text("#!/bin/sh\nprintf '%s\\n' google-chrome.desktop\n")
+    xdg.chmod(0o755)
+    status_env = {**env, "PATH": f"{fake_bin}:{os.environ['PATH']}"}
+    status = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js")], env=status_env).stdout)
+    check("unpacked extension reports active without system registration", status["installed"] and status["upToDate"] and not status["removalReady"], str(status))
+    prefs_file = chrome / "Default/Preferences"
+    prefs = json.loads(prefs_file.read_text())
+    prefs["extensions"]["settings"][EXTENSION_ID]["path"] = str(ROOT / "bridge-extension.crx")
+    prefs_file.write_text(json.dumps(prefs))
+    wrong_path = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js")], env=status_env).stdout)
+    check("legacy CRX is not reported as the unpacked extension", not wrong_path["upToDate"], str(wrong_path))
+    prefs["extensions"]["settings"][EXTENSION_ID].update({"path": str(ROOT / "bridge-extension/source"), "location": 1, "manifest": {"version": "0.0.3"}})
+    prefs_file.write_text(json.dumps(prefs))
+    wrong_location = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js")], env=status_env).stdout)
+    check("cached CRX manifest cannot masquerade as unpacked", not wrong_location["upToDate"], str(wrong_location))
+    prefs["extensions"]["settings"][EXTENSION_ID] = {"path": str(ROOT / "bridge-extension/source"), "location": 4, "state": 1}
+    prefs_file.write_text(json.dumps(prefs))
+    native_file = chrome / "NativeMessagingHosts/io.github.avillagran.mailbox.json"
+    native_file.unlink()
+    missing_host = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js")], env=status_env).stdout)
+    check("missing host is repairable rather than mistaken for uninstall", not missing_host["upToDate"] and not missing_host["removalReady"], str(missing_host))
+    result = run(["node", str(helper)], env=env)
+    check("prepare bridge repairs the native host", result.returncode == 0 and native_file.is_file(), result.stderr)
+    native_manifest = json.loads(native_file.read_text())
+    native_manifest["path"] = "/nonexistent/mailbox-host"
+    native_file.write_text(json.dumps(native_manifest))
+    wrong_host = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js")], env=status_env).stdout)
+    check("wrong native host cannot appear healthy", not wrong_host["upToDate"], str(wrong_host))
+    result = run(["node", str(helper)], env=env)
+    check("prepare bridge repairs a wrong native host", result.returncode == 0, result.stderr)
+    legacy_root = home / "system"
+    legacy_file = legacy_root / "opt/google/chrome/extensions" / f"{EXTENSION_ID}.json"
+    legacy_file.parent.mkdir(parents=True)
+    legacy_file.write_text(json.dumps({"external_crx": str(ROOT / "bridge-extension.crx"), "external_version": "0.0.3"}))
+    legacy_status = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js")], env={**status_env, "MAILBOX_LEGACY_REGISTRY_ROOT": str(legacy_root)}).stdout)
+    check("legacy system registration blocks false green", legacy_status["legacyRegistration"] and not legacy_status["upToDate"], str(legacy_status))
     check("browser bridge removes only its unpacked extension flags", str(ROOT / "bridge-extension") not in flags.read_text() and "/keep/me" in flags.read_text())
     result = run(["node", str(helper), "--uninstall"], env=env)
     check("browser bridge uninstaller exits cleanly", result.returncode == 0, result.stderr)
-    check("browser bridge uninstaller removes registrations", not list(config.glob("**/io.github.avillagran.mailbox.json")) and not list(config.glob(f"**/{EXTENSION_ID}.json")))
+    check("browser bridge uninstaller removes native registrations", not list(config.glob("**/io.github.avillagran.mailbox.json")))
+    status = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js")], env=status_env).stdout)
+    check("uninstall waits for user to remove extension in browser", status["removalReady"] and not status["upToDate"], str(status))
 
 
 def test_omarchy_tools():
