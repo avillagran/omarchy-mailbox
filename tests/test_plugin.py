@@ -257,6 +257,30 @@ def test_panel_badge_propagation():
   check("Chrome guide never elevates privileges", not re.search(r"\b(sudo|pkexec|doas)\b", guide))
 
 
+def test_mark_as_read_keeps_messages():
+  with tempfile.TemporaryDirectory() as directory:
+    home = Path(directory)
+    config = home / ".config/omarchy"
+    cache = home / ".cache/omarchy/mailbox"
+    config.mkdir(parents=True)
+    cache.mkdir(parents=True)
+    now = int(time.time() * 1000)
+    (config / "mailbox.json").write_text(json.dumps({"localReadAt": now - 60000}))
+    (cache / "bridge.json").write_text(json.dumps({"accounts": {"reader@example.test": {"account": "reader@example.test", "index": "0", "unread": 2, "capturedAt": now, "emails": [
+      {"threadId": "OLD", "from": "Old", "subject": "Before the mark", "dateTimestamp": now - 3600000},
+      {"threadId": "NEW", "from": "New", "subject": "After the mark", "dateTimestamp": now - 1000}]}}}))
+    result = run(["node", str(ROOT / "bin/mailbox.js")], env={**os.environ, "HOME": str(home), "MAILBOX_CACHE_TTL_MS": "0"})
+    data = json.loads(result.stdout)
+    rows = {row.get("threadId"): row for row in data.get("emails", [])}
+    check("mark as read keeps earlier messages in the list", set(rows) == {"OLD", "NEW"}, str(list(rows)))
+    check("mark as read flags only earlier messages", rows.get("OLD", {}).get("read") is True and not rows.get("NEW", {}).get("read"), str(rows))
+    check("mark as read counts only later messages", data.get("total") == 1 and data["accounts"][0]["unread"] == 1, str(data.get("accounts")))
+  panel = (ROOT / "Panel.qml").read_text()
+  mark = next(line for line in panel.splitlines() if '"mark-local-read"' in line)
+  check("mark as read button keeps rows in the panel", "root.emails = []" not in mark and "Object.assign({}, email, { read: true })" in mark)
+  check("read rows drop the unread highlight", "font.bold: !modelData.read" in panel and "modelData.read ? 0.04 : 0.16" in panel)
+
+
 def test_notification_reconciliation():
   with tempfile.TemporaryDirectory() as directory:
     home = Path(directory)
@@ -773,6 +797,7 @@ def main():
   test_hey_provider()
   test_marketplace_structure()
   test_panel_badge_propagation()
+  test_mark_as_read_keeps_messages()
   test_notification_reconciliation()
   test_native_host()
   test_bounded_inputs()

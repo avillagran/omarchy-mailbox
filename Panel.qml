@@ -575,7 +575,7 @@ Panel {
             iconText: "󰇰"
             tooltipText: root.t("markAsRead")
             bordered: false
-            onClicked: { Quickshell.execDetached(["node", root.settingsBin, "mark-local-read"]); root.emails = []; root.accounts = root.accounts.map(function(account) { return Object.assign({}, account, { unread: 0 }) }); root.totalUnread = 0 }
+            onClicked: { Quickshell.execDetached(["node", root.settingsBin, "mark-local-read"]); root.emails = root.emails.map(function(email) { return email.notification ? email : Object.assign({}, email, { read: true }) }); root.accounts = root.accounts.map(function(account) { return Object.assign({}, account, { unread: 0 }) }); root.totalUnread = 0 }
             anchors.verticalCenter: parent.verticalCenter
           }
           Item {
@@ -1014,7 +1014,8 @@ Panel {
               visible: !root.settingsMode
               width: contentColumn.width
               height: emailColumn.implicitHeight + Style.space(14)
-              color: root.selectedEmailIndex === index ? Qt.rgba(root.badgeColor(modelData.color).r, root.badgeColor(modelData.color).g, root.badgeColor(modelData.color).b, 0.28) : Qt.rgba(root.badgeColor(modelData.color).r, root.badgeColor(modelData.color).g, root.badgeColor(modelData.color).b, 0.16)
+              // Read messages stay listed without the unread tint and weight.
+              color: Qt.rgba(root.badgeColor(modelData.color).r, root.badgeColor(modelData.color).g, root.badgeColor(modelData.color).b, (root.selectedEmailIndex === index ? 0.12 : 0) + (modelData.read ? 0.04 : 0.16))
               border.width: root.selectedEmailIndex === index ? 1 : 0
               border.color: root.badgeColor(modelData.color)
               radius: Style.cornerRadius
@@ -1032,17 +1033,17 @@ Panel {
                   color: Color.popups.text
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
-                  font.bold: true
+                  font.bold: !modelData.read
                   elide: Text.ElideRight
                 }
                 Text {
                   textFormat: Text.PlainText
                   width: parent.width
                   text: modelData.subject || root.t("noSubject")
-                  color: Color.popups.text
+                  color: modelData.read ? Qt.darker(Color.popups.text, 1.2) : Color.popups.text
                   font.family: Style.font.family
                   font.pixelSize: Style.font.body
-                  font.bold: true
+                  font.bold: !modelData.read
                   elide: Text.ElideRight
                 }
                 Text {
