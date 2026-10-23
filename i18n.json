@@ -82,7 +82,9 @@
     "Discard draft": "Discard draft",
     "Reply in Gmail": "Reply in Gmail",
     "Reply in HEY": "Reply in HEY",
-    "Show only messages you have not read yet.": "Show only messages you have not read yet."
+    "Show only messages you have not read yet.": "Show only messages you have not read yet.",
+    "Today": "Today",
+    "Yesterday": "Yesterday"
   },
   "es": {
     "": {
@@ -167,7 +169,9 @@
     "Discard draft": "Descartar borrador",
     "Reply in Gmail": "Responder en Gmail",
     "Reply in HEY": "Responder en HEY",
-    "Show only messages you have not read yet.": "Muestra solo los correos que aún no has leído."
+    "Show only messages you have not read yet.": "Muestra solo los correos que aún no has leído.",
+    "Today": "Hoy",
+    "Yesterday": "Ayer"
   },
   "pt": {
     "": {
@@ -252,7 +256,9 @@
     "Discard draft": "Descartar rascunho",
     "Reply in Gmail": "Responder no Gmail",
     "Reply in HEY": "Responder no HEY",
-    "Show only messages you have not read yet.": "Mostra apenas as mensagens que você ainda não leu."
+    "Show only messages you have not read yet.": "Mostra apenas as mensagens que você ainda não leu.",
+    "Today": "Hoje",
+    "Yesterday": "Ontem"
   },
   "fr": {
     "": {
@@ -337,7 +343,9 @@
     "Discard draft": "Supprimer le brouillon",
     "Reply in Gmail": "Répondre dans Gmail",
     "Reply in HEY": "Répondre dans HEY",
-    "Show only messages you have not read yet.": "Affiche uniquement les messages que vous n’avez pas encore lus."
+    "Show only messages you have not read yet.": "Affiche uniquement les messages que vous n’avez pas encore lus.",
+    "Today": "Aujourd’hui",
+    "Yesterday": "Hier"
   },
   "de": {
     "": {
@@ -422,7 +430,9 @@
     "Discard draft": "Entwurf verwerfen",
     "Reply in Gmail": "In Gmail antworten",
     "Reply in HEY": "In HEY antworten",
-    "Show only messages you have not read yet.": "Zeigt nur Nachrichten, die du noch nicht gelesen hast."
+    "Show only messages you have not read yet.": "Zeigt nur Nachrichten, die du noch nicht gelesen hast.",
+    "Today": "Heute",
+    "Yesterday": "Gestern"
   },
   "it": {
     "": {
@@ -507,7 +517,9 @@
     "Discard draft": "Elimina bozza",
     "Reply in Gmail": "Rispondi in Gmail",
     "Reply in HEY": "Rispondi in HEY",
-    "Show only messages you have not read yet.": "Mostra solo i messaggi che non hai ancora letto."
+    "Show only messages you have not read yet.": "Mostra solo i messaggi che non hai ancora letto.",
+    "Today": "Oggi",
+    "Yesterday": "Ieri"
   },
   "nl": {
     "": {
@@ -592,7 +604,9 @@
     "Discard draft": "Concept verwijderen",
     "Reply in Gmail": "Antwoorden in Gmail",
     "Reply in HEY": "Antwoorden in HEY",
-    "Show only messages you have not read yet.": "Toont alleen berichten die je nog niet hebt gelezen."
+    "Show only messages you have not read yet.": "Toont alleen berichten die je nog niet hebt gelezen.",
+    "Today": "Vandaag",
+    "Yesterday": "Gisteren"
   },
   "pl": {
     "": {
@@ -677,7 +691,9 @@
     "Discard draft": "Odrzuć wersję roboczą",
     "Reply in Gmail": "Odpowiedz w Gmailu",
     "Reply in HEY": "Odpowiedz w HEY",
-    "Show only messages you have not read yet.": "Pokazuje tylko wiadomości, których jeszcze nie przeczytano."
+    "Show only messages you have not read yet.": "Pokazuje tylko wiadomości, których jeszcze nie przeczytano.",
+    "Today": "Dzisiaj",
+    "Yesterday": "Wczoraj"
   },
   "ru": {
     "": {
@@ -762,7 +778,9 @@
     "Discard draft": "Удалить черновик",
     "Reply in Gmail": "Ответить в Gmail",
     "Reply in HEY": "Ответить в HEY",
-    "Show only messages you have not read yet.": "Показывать только непрочитанные письма."
+    "Show only messages you have not read yet.": "Показывать только непрочитанные письма.",
+    "Today": "Сегодня",
+    "Yesterday": "Вчера"
   },
   "ja": {
     "": {
@@ -847,7 +865,9 @@
     "Discard draft": "下書きを破棄",
     "Reply in Gmail": "Gmail で返信",
     "Reply in HEY": "HEY で返信",
-    "Show only messages you have not read yet.": "まだ読んでいないメッセージだけを表示します。"
+    "Show only messages you have not read yet.": "まだ読んでいないメッセージだけを表示します。",
+    "Today": "今日",
+    "Yesterday": "昨日"
   },
   "ko": {
     "": {
@@ -932,7 +952,9 @@
     "Discard draft": "임시 저장 삭제",
     "Reply in Gmail": "Gmail에서 답장",
     "Reply in HEY": "HEY에서 답장",
-    "Show only messages you have not read yet.": "아직 읽지 않은 메시지만 표시합니다."
+    "Show only messages you have not read yet.": "아직 읽지 않은 메시지만 표시합니다.",
+    "Today": "오늘",
+    "Yesterday": "어제"
   },
   "zh": {
     "": {
@@ -1017,7 +1039,9 @@
     "Discard draft": "舍弃草稿",
     "Reply in Gmail": "在 Gmail 中回复",
     "Reply in HEY": "在 HEY 中回复",
-    "Show only messages you have not read yet.": "只显示尚未阅读的邮件。"
+    "Show only messages you have not read yet.": "只显示尚未阅读的邮件。",
+    "Today": "今天",
+    "Yesterday": "昨天"
   },
   "ar": {
     "": {
@@ -1102,7 +1126,9 @@
     "Discard draft": "تجاهل المسودة",
     "Reply in Gmail": "الرد في Gmail",
     "Reply in HEY": "الرد في HEY",
-    "Show only messages you have not read yet.": "إظهار الرسائل التي لم تقرأها بعد فقط."
+    "Show only messages you have not read yet.": "إظهار الرسائل التي لم تقرأها بعد فقط.",
+    "Today": "اليوم",
+    "Yesterday": "أمس"
   },
   "tr": {
     "": {
@@ -1187,7 +1213,9 @@
     "Discard draft": "Taslağı sil",
     "Reply in Gmail": "Gmail'de yanıtla",
     "Reply in HEY": "HEY'de yanıtla",
-    "Show only messages you have not read yet.": "Yalnızca henüz okumadığınız iletileri gösterir."
+    "Show only messages you have not read yet.": "Yalnızca henüz okumadığınız iletileri gösterir.",
+    "Today": "Bugün",
+    "Yesterday": "Dün"
   },
   "sv": {
     "": {
@@ -1272,7 +1300,9 @@
     "Discard draft": "Släng utkast",
     "Reply in Gmail": "Svara i Gmail",
     "Reply in HEY": "Svara i HEY",
-    "Show only messages you have not read yet.": "Visar bara meddelanden du inte har läst än."
+    "Show only messages you have not read yet.": "Visar bara meddelanden du inte har läst än.",
+    "Today": "Idag",
+    "Yesterday": "Igår"
   },
   "da": {
     "": {
@@ -1357,7 +1387,9 @@
     "Discard draft": "Kassér kladde",
     "Reply in Gmail": "Svar i Gmail",
     "Reply in HEY": "Svar i HEY",
-    "Show only messages you have not read yet.": "Viser kun beskeder, du ikke har læst endnu."
+    "Show only messages you have not read yet.": "Viser kun beskeder, du ikke har læst endnu.",
+    "Today": "I dag",
+    "Yesterday": "I går"
   },
   "no": {
     "": {
@@ -1442,7 +1474,9 @@
     "Discard draft": "Forkast utkast",
     "Reply in Gmail": "Svar i Gmail",
     "Reply in HEY": "Svar i HEY",
-    "Show only messages you have not read yet.": "Viser bare meldinger du ikke har lest ennå."
+    "Show only messages you have not read yet.": "Viser bare meldinger du ikke har lest ennå.",
+    "Today": "I dag",
+    "Yesterday": "I går"
   },
   "fi": {
     "": {
@@ -1527,7 +1561,9 @@
     "Discard draft": "Hylkää luonnos",
     "Reply in Gmail": "Vastaa Gmailissa",
     "Reply in HEY": "Vastaa HEYssä",
-    "Show only messages you have not read yet.": "Näyttää vain viestit, joita et ole vielä lukenut."
+    "Show only messages you have not read yet.": "Näyttää vain viestit, joita et ole vielä lukenut.",
+    "Today": "Tänään",
+    "Yesterday": "Eilen"
   },
   "cs": {
     "": {
@@ -1612,6 +1648,8 @@
     "Discard draft": "Zahodit koncept",
     "Reply in Gmail": "Odpovědět v Gmailu",
     "Reply in HEY": "Odpovědět v HEY",
-    "Show only messages you have not read yet.": "Zobrazí jen zprávy, které jste ještě nečetli."
+    "Show only messages you have not read yet.": "Zobrazí jen zprávy, které jste ještě nečetli.",
+    "Today": "Dnes",
+    "Yesterday": "Včera"
   }
 }

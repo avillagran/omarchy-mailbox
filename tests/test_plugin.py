@@ -92,7 +92,7 @@ def test_i18n():
   english = catalog["en"]
   keys = set(english) - {""}
   check("i18n has 19 locales", len(catalog) == 19, str(sorted(catalog)))
-  check("i18n has 79 message IDs", len(keys) == 79, str(len(keys)))
+  check("i18n has 81 message IDs", len(keys) == 81, str(len(keys)))
   check("automatic Brave setup is localized", catalog["es"]["Install in Brave"] == "Instalar en Brave")
   check("configured status copy is localizable", "Extension %1 is configured; confirm it in the browser." in english)
   check("guided browser setup is localized", "Set up Chrome" in english and "Quit and reopen %1 to activate Mailbox Local Bridge." in english and "Drag Mailbox onto the page" in english and catalog["es"]["Turn on Developer mode"] == "Activa el Modo de desarrollador")
@@ -362,6 +362,8 @@ def test_mail_client_listing():
     check("only unopened messages keep the highlight", rows["SEEN"].get("read") is True and not rows["NEW"].get("read"), str(rows))
   panel = (ROOT / "Panel.qml").read_text()
   check("Inbox 0 hides read messages only while enabled", "return !root.inboxZero || !email.read" in panel and 'text: "Inbox 0"' in panel and '"set-inbox-zero"' in panel)
+  check("desktop notification rows use an envelope instead of [NEW]", '(modelData.notification ? "󰇮 " :' in panel and 'root.selectedAccount === "__all__" && !modelData.notification' in panel)
+  check("rows are grouped under a localized day divider", "readonly property bool firstOfDay:" in panel and "locale.dateFormat(Locale.LongFormat)" in panel and 'root.t("Today")' in panel and 'root.t("Yesterday")' in panel)
   check("Inbox 0 choice persists", "data.inboxZero = data.inboxZero === true;" in (ROOT / "bin/mailbox-settings.js").read_text() and "root.inboxZero = value.inboxZero === true" in panel)
 
 

@@ -165,6 +165,30 @@ Panel {
       return !root.inboxZero || !email.read
     })
   }
+  // Bound once per change so row delegates do not re-filter the whole list.
+  readonly property var listedEmails: root.filteredEmails()
+  function dayKey(email) {
+    var stamp = Number(email && email.dateSort || 0)
+    if (!(stamp > 0)) return ""
+    var when = new Date(stamp)
+    return when.getFullYear() + "-" + when.getMonth() + "-" + when.getDate()
+  }
+  // "Today", "Yesterday", or the locale's long date (weekday, day and month;
+  // the year only when it is not the current one), in the local time zone.
+  function dayLabel(email) {
+    var stamp = Number(email && email.dateSort || 0)
+    if (!(stamp > 0)) return ""
+    var when = new Date(stamp), now = new Date(root.nowMs)
+    var yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+    if (when.toDateString() === now.toDateString()) return root.t("Today")
+    if (when.toDateString() === yesterday.toDateString()) return root.t("Yesterday")
+    var locale = Qt.locale(root.language)
+    var format = locale.dateFormat(Locale.LongFormat)
+    if (when.getFullYear() === now.getFullYear())
+      format = format.replace(/,?\s*(?:'[^']*'\s*)?y+\s*(?:'[^']*'\.?|г\.|年|년)?\s*/g, " ").replace(/[\s,]+$/, "").trim()
+    var text = when.toLocaleDateString(locale, format)
+    return text.charAt(0).toUpperCase() + text.slice(1)
+  }
   function toggleInboxZero() {
     root.inboxZero = !root.inboxZero
     Quickshell.execDetached(["node", root.settingsBin, "set-inbox-zero", root.inboxZero ? "true" : "false"])
@@ -1243,60 +1267,75 @@ Panel {
 
           Repeater {
             id: emailRepeater
-            model: root.filteredEmails()
-            Rectangle {
+            model: root.listedEmails
+            Column {
+              id: emailRow
               visible: !root.settingsMode && !root.replyOpen
               width: contentColumn.width
-              height: emailColumn.implicitHeight + Style.space(14)
-              // Read messages stay listed without the unread tint and weight.
-              color: Qt.rgba(root.badgeColor(modelData.color).r, root.badgeColor(modelData.color).g, root.badgeColor(modelData.color).b, (root.selectedEmailIndex === index ? 0.12 : 0) + (modelData.read ? 0.04 : 0.16))
-              border.width: root.selectedEmailIndex === index ? 1 : 0
-              border.color: root.badgeColor(modelData.color)
-              radius: Style.cornerRadius
-              onHeightChanged: { if (root.selectedEmailIndex === index) Qt.callLater(root.ensureSelectedEmailVisible) }
-
-              Column {
-                id: emailColumn
-                width: parent.width - Style.space(16)
-                anchors.centerIn: parent
-                spacing: Style.space(2)
-                Text {
-                  textFormat: Text.PlainText
-                  width: parent.width
-                  text: (modelData.notification ? "󰂚 " : (root.isExpanded(index, modelData) ? "󰁅 " : "󰁝 ")) + (root.hasDraft(modelData) ? "󰏫 " : "") + (root.selectedAccount === "__all__" ? "[" + (modelData.initials || "?") + "] " : "") + modelData.from + (root.displayDate(modelData) ? " · " + root.displayDate(modelData) : "")
-                  color: Color.popups.text
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
-                  font.bold: !modelData.read
-                  elide: Text.ElideRight
-                }
-                Text {
-                  textFormat: Text.PlainText
-                  width: parent.width
-                  text: modelData.subject || root.t("noSubject")
-                  color: modelData.read ? Qt.darker(Color.popups.text, 1.2) : Color.popups.text
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.body
-                  font.bold: !modelData.read
-                  elide: Text.ElideRight
-                }
-                Text {
-                  textFormat: Text.PlainText
-                  width: parent.width
-                  text: root.isExpanded(index, modelData) ? root.emailBodyText(modelData) : modelData.snippet
-                  color: Qt.darker(Color.popups.text, 1.3)
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
-                  elide: root.isExpanded(index, modelData) ? Text.ElideNone : Text.ElideRight
-                  wrapMode: root.isExpanded(index, modelData) ? Text.WordWrap : Text.NoWrap
-                  maximumLineCount: root.isExpanded(index, modelData) ? 0 : 1
-                }
+              spacing: Style.space(6)
+              // A dated divider opens each day, in the reader's language.
+              readonly property bool firstOfDay: index === 0 || root.dayKey(root.listedEmails[index - 1]) !== root.dayKey(modelData)
+              Item {
+                visible: emailRow.firstOfDay && root.dayKey(modelData) !== ""
+                width: parent.width
+                height: dayLabel.implicitHeight + Style.space(6)
+                Rectangle { anchors.left: parent.left; anchors.right: dayLabel.left; anchors.rightMargin: Style.space(8); anchors.verticalCenter: dayLabel.verticalCenter; height: 1; color: Qt.rgba(Color.muted.r, Color.muted.g, Color.muted.b, 0.5) }
+                Text { textFormat: Text.PlainText; id: dayLabel; anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; text: root.dayLabel(modelData); color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.caption; font.bold: true }
+                Rectangle { anchors.left: dayLabel.right; anchors.right: parent.right; anchors.leftMargin: Style.space(8); anchors.verticalCenter: dayLabel.verticalCenter; height: 1; color: Qt.rgba(Color.muted.r, Color.muted.g, Color.muted.b, 0.5) }
               }
-              MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.openEmail(modelData)
+              Rectangle {
+                width: contentColumn.width
+                height: emailColumn.implicitHeight + Style.space(14)
+                // Read messages stay listed without the unread tint and weight.
+                color: Qt.rgba(root.badgeColor(modelData.color).r, root.badgeColor(modelData.color).g, root.badgeColor(modelData.color).b, (root.selectedEmailIndex === index ? 0.12 : 0) + (modelData.read ? 0.04 : 0.16))
+                border.width: root.selectedEmailIndex === index ? 1 : 0
+                border.color: root.badgeColor(modelData.color)
+                radius: Style.cornerRadius
+                onHeightChanged: { if (root.selectedEmailIndex === index) Qt.callLater(root.ensureSelectedEmailVisible) }
+
+                Column {
+                  id: emailColumn
+                  width: parent.width - Style.space(16)
+                  anchors.centerIn: parent
+                  spacing: Style.space(2)
+                  Text {
+                    textFormat: Text.PlainText
+                    width: parent.width
+                    text: (modelData.notification ? "󰇮 " : (root.isExpanded(index, modelData) ? "󰁅 " : "󰁝 ")) + (root.hasDraft(modelData) ? "󰏫 " : "") + (root.selectedAccount === "__all__" && !modelData.notification ? "[" + (modelData.initials || "?") + "] " : "") + modelData.from + (root.displayDate(modelData) ? " · " + root.displayDate(modelData) : "")
+                    color: Color.popups.text
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                    font.bold: !modelData.read
+                    elide: Text.ElideRight
+                  }
+                  Text {
+                    textFormat: Text.PlainText
+                    width: parent.width
+                    text: modelData.subject || root.t("noSubject")
+                    color: modelData.read ? Qt.darker(Color.popups.text, 1.2) : Color.popups.text
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.body
+                    font.bold: !modelData.read
+                    elide: Text.ElideRight
+                  }
+                  Text {
+                    textFormat: Text.PlainText
+                    width: parent.width
+                    text: root.isExpanded(index, modelData) ? root.emailBodyText(modelData) : modelData.snippet
+                    color: Qt.darker(Color.popups.text, 1.3)
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                    elide: root.isExpanded(index, modelData) ? Text.ElideNone : Text.ElideRight
+                    wrapMode: root.isExpanded(index, modelData) ? Text.WordWrap : Text.NoWrap
+                    maximumLineCount: root.isExpanded(index, modelData) ? 0 : 1
+                  }
+                }
+                MouseArea {
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: root.openEmail(modelData)
+                }
               }
             }
           }
