@@ -62,13 +62,13 @@ def test_static_files():
   check("no browser-killing restart helper is shipped", not (ROOT / "bin/mailbox-browser-restart.py").exists())
   check("no predictable /tmp paths in runtime code", not any("/tmp/" in path.read_text(errors="replace") for path in scanned if path.suffix != ".md"))
   check("panel offers automatic Chromium and Brave installation", 'id: installChromiumBridgeButton' in panel and 'id: installBraveBridgeButton' in panel and 'command: ["node", root.bridgeRegisterBin, root.bridgeBrowserTarget === "brave" ? "--brave" : "--chromium"]' in panel)
-  check("panel offers guided Chrome setup", 'id: installChromeBridgeButton' in panel and 'command: ["node", root.browserExtensionSetupBin, "--chrome"]' in panel)
+  check("panel offers guided Chrome setup", 'id: installChromeBridgeButton' in panel and "ChromeGuide { id: chromeGuide; panel: root }" in panel and "chromeGuide.show()" in panel)
   check("browser setup stays available after another browser is configured", 'visible: root.bridgeStatusKnown || root.bridgeInstallState.length > 0\n              width: parent.width' in panel)
   check("browser selection saves the last rapid choice", 'function saveBrowserTarget(browser)' in panel and 'root.pendingBrowserTargetSave = browser' in panel and 'root.saveBrowserTarget(pending)' in panel)
-  busy = 'if (bridgeInstallProc.running || flagsBridgeInstallProc.running || browserExtensionSetupProc.running || bridgeUninstallProc.running) return'
+  busy = 'if (bridgeInstallProc.running || flagsBridgeInstallProc.running || bridgeUninstallProc.running) return'
   check("browser installers cannot overlap and stale green status clears", busy in panel and 'root.bridgeUpToDate = false' in panel[panel.index('function installFlagsBridge(browser)'):panel.index('function uninstallBridge()')])
-  check("browser installer failures recheck status", 'bridgeStatusRetry.restart()' in panel[panel.index('id: bridgeInstallProc'):panel.index('id: browserExtensionSetupProc')])
-  check("uninstall cannot overlap an installer", panel.count(busy) >= 3 and 'enabled: !bridgeInstallProc.running && !flagsBridgeInstallProc.running && !browserExtensionSetupProc.running && !bridgeUninstallProc.running' in panel)
+  check("browser installer failures recheck status", 'bridgeStatusRetry.restart()' in panel[panel.index('id: bridgeInstallProc'):panel.index('id: flagsBridgeInstallProc')])
+  check("uninstall cannot overlap an installer", panel.count(busy) >= 3 and 'enabled: !bridgeInstallProc.running && !flagsBridgeInstallProc.running && !bridgeUninstallProc.running' in panel)
   check("status errors clear stale green result", 'catch (_) { root.bridgeInstalled = false; root.bridgeFlagsConfigured = false; root.bridgeLegacyRegistration = false; root.bridgeUpToDate = false; root.bridgeStatusKnown = true' in panel)
   check("selected browser status does not fall back during setup", 'property string bridgeBrowserTarget: ""' in panel and 'if (!root.bridgeBrowserTarget && !root.bridgeBrowserAutomatic && status.flagsConfigured && !status.installed)' in panel and 'root.bridgeBrowserTarget = browser' in panel)
   check("chosen browser survives a panel reload", 'command: ["node", root.settingsBin, "set-browser", root.bridgeBrowserTarget]' in panel and 'value.bridgeBrowserTarget || ""' in panel)
@@ -76,7 +76,7 @@ def test_static_files():
   check("refresh follows explicit Brave and Chrome selection", '["node", root.forceRefreshBin, "--brave"]' in panel and '["node", root.forceRefreshBin, "--chrome"]' in panel)
   check("status does not claim an unverified live extension", 'root.tf("Extension %1 is configured; confirm it in the browser."' in panel)
   check("browser restart is manual and does not kill other sessions", "restartBrowser" not in panel)
-  text_elements = re.findall(r"(?<![A-Za-z.])Text \{[^\n]*(?:\n\s+[^\n]*)?", panel)
+  text_elements = re.findall(r"(?<![A-Za-z.])Text \{[^\n]*(?:\n\s+[^\n]*)?", panel + (ROOT / "ChromeGuide.qml").read_text())
   check("every QML Text renders plain text", text_elements and all("textFormat: Text.PlainText" in element for element in text_elements), str(len(text_elements)))
   check("panel opens only provider URLs from bridge data", "safeInboxUrl" in (ROOT / "bin/mailbox-bridge-host.js").read_text() and "mail\\.google\\.com|app\\.hey\\.com" in (ROOT / "bin/mailbox.js").read_text())
   check("README describes the rootless flags-file setup", "chromium-flags.conf" in readme and "brave-flags.conf" in readme and "Load unpacked" in readme and "mailbox-bridge-register.js" in readme)
@@ -91,10 +91,10 @@ def test_i18n():
   english = catalog["en"]
   keys = set(english) - {""}
   check("i18n has 19 locales", len(catalog) == 19, str(sorted(catalog)))
-  check("i18n has 53 message IDs", len(keys) == 53, str(len(keys)))
+  check("i18n has 66 message IDs", len(keys) == 66, str(len(keys)))
   check("automatic Brave setup is localized", catalog["es"]["Install in Brave"] == "Instalar en Brave")
   check("configured status copy is localizable", "Extension %1 is configured; confirm it in the browser." in english)
-  check("guided browser setup is localized", "Set up Chrome" in english and "Quit and reopen %1 to activate Mailbox Local Bridge." in english and "Extension folder copied. In your browser menu, open Extensions > Manage extensions, enable Developer mode, choose Load unpacked, and paste the copied path." in english)
+  check("guided browser setup is localized", "Set up Chrome" in english and "Quit and reopen %1 to activate Mailbox Local Bridge." in english and "Drag Mailbox onto the page" in english and catalog["es"]["Turn on Developer mode"] == "Activa el Modo de desarrollador")
   for locale, translations in catalog.items():
     check(f"i18n coverage: {locale}", set(translations) - {""} == keys)
     check(f"i18n plural header: {locale}", "" in translations)
@@ -215,7 +215,7 @@ def test_marketplace_structure():
   marketplace_manifests = [path for path in ROOT.rglob("manifest.json") if len(path.relative_to(ROOT).parts) <= 2]
   check("marketplace sees exactly one root plugin manifest", marketplace_manifests == [ROOT / "manifest.json"], str(marketplace_manifests))
   check("marketplace plugin ID is namespaced and non-reserved", manifest["id"].startswith("io.github.avillagran.") and not manifest["id"].startswith("omarchy."))
-  check("plugin version advances after rootless browser setup", manifest["version"] == "0.0.5", manifest["version"])
+  check("plugin version advances with the guided Chrome window", manifest["version"] == "0.0.6", manifest["version"])
   check("extension version preserves live revision", json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())["version"] == "0.0.5")
   check("README documents Gmail and HEY support", "Gmail and HEY" in readme and "https://app.hey.com/*" in readme)
   check("marketplace root README documents installation", "## Installation" in readme and "omarchy plugin add" in readme)
@@ -244,7 +244,17 @@ def test_panel_badge_propagation():
   check("notification warning explains itself on hover", "PanelToolTip" in source and 'root.t("Enable notifications for this account.")' in source and "notificationStatusMouse.containsMouse" in source)
   check("sync status stays in fixed header space", "id: headerSyncStatus" in source and "opacity: root.syncing ? 1 : 0" in source and source.index("id: headerSyncStatus") < source.index('iconText: "󰑐"'))
   check("sync status does not shift the message list", 'Rectangle {\n            visible: root.syncing' not in source)
-  check("browser setup explains user-owned unpacked install", "Load unpacked" in source and "Developer mode" in source and "root.openBrowserExtensionSetup()" in source)
+  check("row date derives from the resolved timestamp, not the capture-time label", "root.displayDate(modelData)" in source and '" · " + modelData.date' not in source and "toDateString() === now.toDateString()" in source)
+  check("inbox flags a saved copy when the extension is missing", "function staleNotice()" in source and "root.staleNotice()" in source and 'root.t("Extension not installed")' in source)
+  check("row date labels refresh while the panel is open", "onTriggered: root.nowMs = Date.now()" in source)
+  guide = (ROOT / "ChromeGuide.qml").read_text()
+  check("browser setup explains user-owned unpacked install", "Load unpacked" in source and "Developer mode" in guide and "root.openBrowserExtensionSetup()" in source)
+  check("Chrome guide is a window beside the browser", "FloatingWindow {" in guide and "root.close()" in source[source.index("function openBrowserExtensionSetup"):][:200])
+  check("Chrome guide drags the extension folder as a file URI", "Drag.dragType: Drag.Automatic" in guide and '"text/uri-list": "file://" + encodeURI(root.extensionPath)' in guide)
+  check("Chrome guide ticks steps off from Chrome state", "status.developerMode === true" in guide and "status.upToDate === true" in guide and "running: window.visible && !root.finished" in guide)
+  check("Chrome guide opens only fixed browser pages", 'root.openChrome("extensions")' in guide and 'root.openChrome("gmail")' in guide and "Object.hasOwn(PAGES, target)" in (ROOT / "bin/mailbox-open-browser-extensions.js").read_text())
+  check("Chrome guide header moves the window", "onPressed: window.startSystemMove()" in guide)
+  check("Chrome guide never elevates privileges", not re.search(r"\b(sudo|pkexec|doas)\b", guide))
 
 
 def test_notification_reconciliation():
@@ -621,13 +631,43 @@ def test_guided_browser_setup():
     check("guided setup does not wait for the browser to quit", result.returncode == 0 and elapsed < 3, f"exit={result.returncode} elapsed={elapsed:.2f} {result.stderr}")
     check("guided setup does not wait on clipboard owner inherited pipes", elapsed < 1.2, f"clipboard blocked setup for {elapsed:.2f}s: {result.stderr}")
     check("guided setup opens the browser without a user command", gui.exists() and "about:blank" in gui.read_text(), result.stderr)
-    check("guided setup copies the extension directory", clip.exists() and str(ROOT / "bridge-extension/source") in clip.read_text(), result.stderr)
+    check("guided setup copies the Extensions page address", clip.exists() and "chrome://extensions" in clip.read_text(), result.stderr)
+    gui.unlink()
+    result = run(["node", str(helper), "--chrome", "gmail"], env=env)
+    for _ in range(20):
+      if gui.exists(): break
+      time.sleep(0.05)
+    check("guided setup opens Gmail in Chrome", result.returncode == 0 and gui.exists() and "https://mail.google.com/mail/" in gui.read_text(), result.stderr)
+    result = run(["node", str(helper), "--chrome", "toString"], env=env)
+    check("guided setup rejects unknown pages", result.returncode != 0, result.stdout)
     gui.unlink()
     result = run(["node", str(helper), "--brave"], env=env)
     for _ in range(20):
       if gui.exists(): break
       time.sleep(0.05)
     check("guided Brave setup selects Brave regardless of default browser", result.returncode == 0 and gui.exists() and "brave-browser.desktop" in gui.read_text(), result.stderr)
+
+
+def test_chrome_status_detection():
+  status_bin = ROOT / "bin/mailbox-bridge-status.js"
+  extension = ROOT / "bridge-extension/source"
+  with tempfile.TemporaryDirectory() as directory:
+    home = Path(directory)
+    chrome = home / ".config/google-chrome"
+    (chrome / "Default").mkdir(parents=True)
+    (chrome / "NativeMessagingHosts").mkdir()
+    (chrome / "NativeMessagingHosts/io.github.avillagran.mailbox.json").write_text(json.dumps({"path": str(ROOT / "bin/mailbox-bridge-host.js"), "allowed_origins": ["chrome-extension://kjmlhpckodkmfcjmelnkknkaeiognoed/"]}))
+    env = {**os.environ, "HOME": str(home), "MAILBOX_LEGACY_REGISTRY_ROOT": str(home / "none")}
+    def status(setting, ui=None):
+      prefs = {"extensions": {"settings": {"kjmlhpckodkmfcjmelnkknkaeiognoed": setting}}}
+      if ui is not None: prefs["account_values"] = {"extensions": {"ui": ui}}
+      (chrome / "Default/Preferences").write_text(json.dumps(prefs))
+      return json.loads(run(["node", str(status_bin), "--chrome"], env=env).stdout)
+    enabled = status({"location": 4, "path": str(extension)}, {"developer_mode": True})
+    check("Chrome status accepts enabled unpacked entries without state", enabled["upToDate"] is True, str(enabled))
+    check("Chrome status reports account-level Developer mode", enabled["developerMode"] is True, str(enabled))
+    disabled = status({"location": 4, "path": str(extension), "disable_reasons": [1]})
+    check("Chrome status keeps disabled unpacked entries inactive", disabled["upToDate"] is False and disabled["developerMode"] is False, str(disabled))
 
 
 def test_refresh_requires_installed_extension():
@@ -726,6 +766,7 @@ def test_bounded_inputs():
 def main():
   test_guided_browser_setup()
   test_refresh_requires_installed_extension()
+  test_chrome_status_detection()
   test_static_files()
   test_i18n()
   test_versions()

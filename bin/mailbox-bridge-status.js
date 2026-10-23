@@ -51,6 +51,8 @@ let loadedPath = '';
 let unpacked = false;
 let commandLine = false;
 let stateMissing = false;
+let developerMode = false;
+let disabled = false;
 try {
   const prefs = readJson(path.join(profileRoot, profile, 'Preferences'), LIMITS.browserState);
   const setting = prefs.extensions?.settings?.[id] || {};
@@ -61,6 +63,9 @@ try {
   unpacked = (setting.location === 4 || setting.location === 8) && loadedPath === extensionPath;
   commandLine = setting.location === 8;
   stateMissing = setting.state === undefined;
+  disabled = Array.isArray(setting.disable_reasons) ? setting.disable_reasons.length > 0 : Boolean(setting.disable_reasons);
+  // Signed-in profiles keep the Extensions page toggle under account_values.
+  developerMode = prefs.extensions?.ui?.developer_mode === true || prefs.account_values?.extensions?.ui?.developer_mode === true;
 } catch (_) {}
 // Browsers do not cache the manifest for unpacked extensions in Preferences.
 // Read the bundled manifest only for an entry loaded from this exact directory.
@@ -106,10 +111,13 @@ if (flagsFile) {
 // Command-line extensions can omit `state` from Preferences even when loaded.
 // Require both the exact installed path and our current startup flag.
 if (commandLine && stateMissing && unpacked && flagsConfigured) active = true;
+// Recent Chrome releases also omit `state` for enabled unpacked extensions and
+// record `disable_reasons` only when the user turns one off.
+if (!commandLine && stateMissing && unpacked && !disabled) active = true;
 const upToDate = active && nativeReady && unpacked && (!commandLine || flagsConfigured)
   && loadedVersion === latestVersion && !legacyRegistration;
 const removalReady = installed && !nativeReady && fs.existsSync(path.join(os.homedir(), '.config', 'omarchy', 'mailbox-bridge-removing'));
 const updateReady = !removalReady && installed && !upToDate;
 console.log(JSON.stringify({ browser: browser || 'unknown', profile, installed, loadedVersion, stagedVersion, runtimeVersion,
   registrationMode: unpacked ? (commandLine ? 'user-flags' : 'user-unpacked') : 'none', extensionPath, latestVersion,
-  flagsFile, flagsConfigured, automatic: Boolean(flagsFile), upToDate, updateReady, removalReady, legacyRegistration }));
+  developerMode, flagsFile, flagsConfigured, automatic: Boolean(flagsFile), upToDate, updateReady, removalReady, legacyRegistration }));

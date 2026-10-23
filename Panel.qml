@@ -36,7 +36,6 @@ Panel {
   property string bridgeRegisterBin: Qt.resolvedUrl("bin/mailbox-bridge-register.js").toString().replace("file://", "")
   property string bridgeExtensionPath: Qt.resolvedUrl("bridge-extension/source").toString().replace("file://", "")
   property string forceRefreshBin: Qt.resolvedUrl("bin/mailbox-force-refresh.js").toString().replace("file://", "")
-  property string browserExtensionSetupBin: Qt.resolvedUrl("bin/mailbox-open-browser-extensions.js").toString().replace("file://", "")
   property string bridgeInstallState: ""
   property string bridgeStatusText: ""
   property bool bridgeUpToDate: false
@@ -68,6 +67,25 @@ Panel {
   property bool returnTriggered: false
   function selectedEmail() { var rows = root.filteredEmails(); return rows.length && root.selectedEmailIndex >= 0 ? rows[root.selectedEmailIndex] : null }
   function t(key) { var msgid = root.msgids[key] || key; var selected = root.i18nCatalog[root.language] || {}; return selected[msgid] !== undefined ? selected[msgid] : msgid }
+  property real nowMs: Date.now()
+  // Inbox UIs label recent mail with a bare clock time relative to the moment
+  // of capture. Derive the label from the resolved timestamp so an old snapshot
+  // never reads as today's mail.
+  function displayDate(email) {
+    var stamp = Number(email && email.dateSort || 0)
+    if (!(stamp > 0)) return email && email.date ? String(email.date) : ""
+    var when = new Date(stamp), now = new Date(root.nowMs), locale = Qt.locale(root.language)
+    if (when.toDateString() === now.toDateString()) return when.toLocaleTimeString(locale, Locale.ShortFormat)
+    return when.toLocaleDateString(locale, when.getFullYear() === now.getFullYear() ? "d MMM" : "d MMM yyyy")
+  }
+  // A missing extension leaves only the saved copy. Say so, with its age,
+  // instead of presenting it as a live Inbox.
+  function staleNotice() {
+    if (!root.bridgeStatusKnown || root.bridgeInstalled) return ""
+    var last = 0
+    for (var i = 0; i < root.accounts.length; i++) last = Math.max(last, Number(root.accounts[i].lastCapturedAt || 0))
+    return last > 0 ? root.t("Extension not installed") + " · 󰑐 " + root.displayDate({ dateSort: last }) : ""
+  }
   function tf(key, values) { var result = root.t(key); for (var i = 0; i < values.length; i++) result = result.replace("%" + (i + 1), values[i]); return result }
   function moveEmail(delta) { var rows = root.filteredEmails(); if (!rows.length) return; root.selectedEmailIndex = Math.max(0, Math.min(rows.length - 1, root.selectedEmailIndex + delta)); Qt.callLater(root.ensureSelectedEmailVisible) }
   function toggleSelectedEmail() { var email = root.selectedEmail(); if (!email || email.notification) return; root.expandedEmailIndex = root.expandedEmailIndex === root.selectedEmailIndex ? -1 : root.selectedEmailIndex; Qt.callLater(root.ensureSelectedEmailVisible) }
@@ -123,6 +141,8 @@ Panel {
     onTriggered: root.refresh()
   }
 
+  Timer { interval: 60000; repeat: true; running: root.opened; triggeredOnStart: true; onTriggered: root.nowMs = Date.now() }
+
   Process {
     id: fetchProc
     command: ["node", root.binPath]
@@ -140,19 +160,6 @@ Panel {
     onExited: function(exitCode) {
       if (exitCode === 0) root.openBrowserExtensionSetup()
       bridgeStatusRetry.restart()
-    }
-    stdout: StdioCollector { waitForEnd: true }
-    stderr: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: { if (text.trim().length) root.bridgeInstallState = root.tf("installFailed", [text.trim()]) }
-    }
-  }
-  Process {
-    id: browserExtensionSetupProc
-    command: ["node", root.browserExtensionSetupBin, "--chrome"]
-    running: false
-    onExited: function(exitCode) {
-      if (exitCode === 0) root.bridgeInstallState = root.t("Extension folder copied. In your browser menu, open Extensions > Manage extensions, enable Developer mode, choose Load unpacked, and paste the copied path.")
     }
     stdout: StdioCollector { waitForEnd: true }
     stderr: StdioCollector {
@@ -387,7 +394,7 @@ Panel {
   function browserDisplayName(browser) { return browser === "brave" ? "Brave" : browser === "chromium" ? "Chromium" : "Chrome" }
   function installBridge(browser) {
     if (browser !== "chrome") return
-    if (bridgeInstallProc.running || flagsBridgeInstallProc.running || browserExtensionSetupProc.running || bridgeUninstallProc.running) return
+    if (bridgeInstallProc.running || flagsBridgeInstallProc.running || bridgeUninstallProc.running) return
     root.bridgeBrowserTarget = browser
     root.bridgeBrowserTargetChosen = true
     root.saveBrowserTarget(browser)
@@ -397,10 +404,10 @@ Panel {
     root.bridgeInstallState = root.t("installingBridge")
     bridgeInstallProc.running = true
   }
-  function openBrowserExtensionSetup() { if (!browserExtensionSetupProc.running) browserExtensionSetupProc.running = true }
+  function openBrowserExtensionSetup() { root.bridgeInstallState = ""; chromeGuide.show(); root.close() }
   function installFlagsBridge(browser) {
     if (browser !== "chromium" && browser !== "brave") return
-    if (bridgeInstallProc.running || flagsBridgeInstallProc.running || browserExtensionSetupProc.running || bridgeUninstallProc.running) return
+    if (bridgeInstallProc.running || flagsBridgeInstallProc.running || bridgeUninstallProc.running) return
     root.bridgeBrowserTarget = browser
     root.bridgeBrowserTargetChosen = true
     root.saveBrowserTarget(browser)
@@ -411,7 +418,7 @@ Panel {
     flagsBridgeInstallProc.running = true
   }
   function uninstallBridge() {
-    if (bridgeInstallProc.running || flagsBridgeInstallProc.running || browserExtensionSetupProc.running || bridgeUninstallProc.running) return
+    if (bridgeInstallProc.running || flagsBridgeInstallProc.running || bridgeUninstallProc.running) return
     root.bridgeInstallState = root.t("removingBridge")
     bridgeUninstallProc.running = true
   }
@@ -504,6 +511,8 @@ Panel {
     var next = roles[(roles.indexOf(account.color) + 1) % roles.length]
     root.saveBadge(account.email, account.initials, next)
   }
+
+  ChromeGuide { id: chromeGuide; panel: root }
 
   PinnedKeyboardPanel {
     id: panel
@@ -712,7 +721,7 @@ Panel {
               color: root.bridgeUpToDate ? Qt.rgba(root.badgeColor("green").r, root.badgeColor("green").g, root.badgeColor("green").b, 0.24) : Qt.rgba(Color.urgent.r, Color.urgent.g, Color.urgent.b, 0.16)
               border.color: root.bridgeUpToDate ? root.badgeColor("green") : Color.urgent
               Text { textFormat: Text.PlainText; anchors.left: parent.left; anchors.right: uninstallBridgeButton.left; anchors.verticalCenter: parent.verticalCenter; anchors.leftMargin: Style.space(10); anchors.rightMargin: Style.space(6); text: root.bridgeStatusText; color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; font.bold: true; elide: Text.ElideRight }
-              Button { id: uninstallBridgeButton; visible: root.bridgeInstalled || root.bridgeFlagsConfigured; enabled: !bridgeInstallProc.running && !flagsBridgeInstallProc.running && !browserExtensionSetupProc.running && !bridgeUninstallProc.running; anchors.right: parent.right; anchors.rightMargin: Style.space(4); anchors.verticalCenter: parent.verticalCenter; iconText: "󰆴"; bordered: false; onClicked: root.uninstallBridge() }
+              Button { id: uninstallBridgeButton; visible: root.bridgeInstalled || root.bridgeFlagsConfigured; enabled: !bridgeInstallProc.running && !flagsBridgeInstallProc.running && !bridgeUninstallProc.running; anchors.right: parent.right; anchors.rightMargin: Style.space(4); anchors.verticalCenter: parent.verticalCenter; iconText: "󰆴"; bordered: false; onClicked: root.uninstallBridge() }
             }
             Text {
               textFormat: Text.PlainText
@@ -754,19 +763,19 @@ Panel {
                   Button {
                     id: installChromiumBridgeButton
                     text: root.t("Install in Chromium")
-                    enabled: !bridgeInstallProc.running && !flagsBridgeInstallProc.running && !browserExtensionSetupProc.running && !bridgeUninstallProc.running
+                    enabled: !bridgeInstallProc.running && !flagsBridgeInstallProc.running && !bridgeUninstallProc.running
                     onClicked: root.installFlagsBridge("chromium")
                   }
                   Button {
                     id: installBraveBridgeButton
                     text: root.t("Install in Brave")
-                    enabled: !bridgeInstallProc.running && !flagsBridgeInstallProc.running && !browserExtensionSetupProc.running && !bridgeUninstallProc.running
+                    enabled: !bridgeInstallProc.running && !flagsBridgeInstallProc.running && !bridgeUninstallProc.running
                     onClicked: root.installFlagsBridge("brave")
                   }
                   Button {
                     id: installChromeBridgeButton
                     text: root.t("Set up Chrome")
-                    enabled: !bridgeInstallProc.running && !flagsBridgeInstallProc.running && !browserExtensionSetupProc.running && !bridgeUninstallProc.running
+                    enabled: !bridgeInstallProc.running && !flagsBridgeInstallProc.running && !bridgeUninstallProc.running
                     onClicked: root.installBridge("chrome")
                   }
                 }
@@ -931,12 +940,12 @@ Panel {
 
           Text {
             textFormat: Text.PlainText
-            visible: root.fetchStatus !== "ok" || root.fetchMessage.length > 0
+            visible: text.length > 0
             width: parent.width - Style.space(16)
             anchors.horizontalCenter: parent.horizontalCenter
-            text: root.fetchMessage
+            text: [root.staleNotice(), root.fetchMessage].filter(function(part) { return part.length > 0 }).join("\n")
             wrapMode: Text.WordWrap
-            color: root.fetchStatus === "login-required" || root.fetchStatus === "unavailable" ? Color.urgent : Color.popups.text
+            color: root.fetchStatus === "login-required" || root.fetchStatus === "unavailable" || root.staleNotice().length > 0 ? Color.urgent : Color.popups.text
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
           }
@@ -1019,7 +1028,7 @@ Panel {
                 Text {
                   textFormat: Text.PlainText
                   width: parent.width
-                  text: (modelData.notification ? "󰂚 " : (root.expandedEmailIndex === index ? "󰁅 " : "󰁝 ")) + (root.selectedAccount === "__all__" ? "[" + (modelData.initials || "?") + "] " : "") + modelData.from + (modelData.date ? " · " + modelData.date : "")
+                  text: (modelData.notification ? "󰂚 " : (root.expandedEmailIndex === index ? "󰁅 " : "󰁝 ")) + (root.selectedAccount === "__all__" ? "[" + (modelData.initials || "?") + "] " : "") + modelData.from + (root.displayDate(modelData) ? " · " + root.displayDate(modelData) : "")
                   color: Color.popups.text
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption

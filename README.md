@@ -38,7 +38,7 @@ omarchy plugin add https://github.com/avillagran/omarchy-mailbox --enable
 Open Mailbox preferences from the bar and pick your browser:
 
 - **Install in Chromium** or **Install in Brave** registers the per-user host, adds the bundled extension to that browser's user flags file, and finishes after you quit and reopen the browser. No Developer mode is needed.
-- **Set up Chrome** registers the per-user host, copies the extension folder path to the clipboard and opens Chrome. Google Chrome ignores `--load-extension` and has no per-user external registration on Linux, so it needs one manual step: in the Chrome menu choose Extensions → Manage extensions, enable **Developer mode**, click **Load unpacked**, and paste the copied path (the `bridge-extension/source` directory). The path is also shown in Mailbox preferences.
+- **Set up Chrome** registers the per-user host and opens a small Mailbox window beside Chrome for the one manual step Google Chrome requires. Chrome ignores `--load-extension` and has no per-user external registration on Linux, so the extension is added from Chrome's own Extensions page. The window has a button that opens Chrome (with `chrome://extensions` on the clipboard to paste), asks you to turn on **Developer mode**, and offers a **Mailbox Local Bridge** tile to drag onto the page (or a button that shows the `bridge-extension/source` folder for **Load unpacked**). Each step is ticked off from Chrome's own profile state. It runs as your user and never asks for a password.
 
 Then open each Gmail account and the HEY Imbox normally. Mailbox discovers those pages without asking for email credentials or copying browser cookies.
 
