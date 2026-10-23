@@ -834,20 +834,11 @@ Panel {
             spacing: Style.space(8)
             Text {
               textFormat: Text.PlainText
-              text: root.t("accountBadges")
+              text: "Mailbox Local Bridge"
               color: Color.popups.text
               font.family: Style.font.family
               font.pixelSize: Style.font.subtitle
               font.bold: true
-            }
-            Text {
-              textFormat: Text.PlainText
-              text: root.t("themeColorsHint")
-              width: parent.width
-              color: Color.popups.text
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
-              wrapMode: Text.WordWrap
             }
             Text {
               textFormat: Text.PlainText
@@ -1016,6 +1007,24 @@ Panel {
               spacing: Style.space(8)
               Button { text: root.t("clearDownloadedContent"); onClicked: root.clearBodies() }
               Text { textFormat: Text.PlainText; text: root.bodySettingsState; color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+            }
+            Item { width: 1; height: Style.space(4) }
+            Text {
+              textFormat: Text.PlainText
+              text: root.t("accountBadges")
+              color: Color.popups.text
+              font.family: Style.font.family
+              font.pixelSize: Style.font.subtitle
+              font.bold: true
+            }
+            Text {
+              textFormat: Text.PlainText
+              text: root.t("themeColorsHint")
+              width: parent.width
+              color: Color.popups.text
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              wrapMode: Text.WordWrap
             }
             Repeater {
               model: root.accounts
