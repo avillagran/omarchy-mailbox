@@ -63,7 +63,8 @@ def test_static_files():
   check("no predictable /tmp paths in runtime code", not any("/tmp/" in path.read_text(errors="replace") for path in scanned if path.suffix != ".md"))
   check("panel offers automatic Chromium and Brave installation", 'id: installChromiumBridgeButton' in panel and 'id: installBraveBridgeButton' in panel and 'command: ["node", root.bridgeRegisterBin, root.bridgeBrowserTarget === "brave" ? "--brave" : "--chromium"]' in panel)
   check("panel offers guided Chrome setup", 'id: installChromeBridgeButton' in panel and "ChromeGuide { id: chromeGuide; panel: root }" in panel and "chromeGuide.show()" in panel)
-  check("browser setup stays available after another browser is configured", 'visible: root.bridgeStatusKnown || root.bridgeInstallState.length > 0\n              width: parent.width' in panel)
+  check("browser setup stays available after another browser is configured", 'visible: (root.bridgeStatusKnown || root.bridgeInstallState.length > 0) && root.bridgeSectionOpen\n              width: parent.width' in panel)
+  check("healthy extension settings fold and stay expandable", "readonly property bool bridgeSectionOpen: !root.bridgeStatusKnown || !root.bridgeUpToDate || root.bridgeSectionExpanded" in panel and "onClicked: root.bridgeSectionExpanded = !root.bridgeSectionExpanded" in panel)
   check("browser selection saves the last rapid choice", 'function saveBrowserTarget(browser)' in panel and 'root.pendingBrowserTargetSave = browser' in panel and 'root.saveBrowserTarget(pending)' in panel)
   busy = 'if (bridgeInstallProc.running || flagsBridgeInstallProc.running || bridgeUninstallProc.running) return'
   check("browser installers cannot overlap and stale green status clears", busy in panel and 'root.bridgeUpToDate = false' in panel[panel.index('function installFlagsBridge(browser)'):panel.index('function uninstallBridge()')])
@@ -91,7 +92,7 @@ def test_i18n():
   english = catalog["en"]
   keys = set(english) - {""}
   check("i18n has 19 locales", len(catalog) == 19, str(sorted(catalog)))
-  check("i18n has 66 message IDs", len(keys) == 66, str(len(keys)))
+  check("i18n has 78 message IDs", len(keys) == 78, str(len(keys)))
   check("automatic Brave setup is localized", catalog["es"]["Install in Brave"] == "Instalar en Brave")
   check("configured status copy is localizable", "Extension %1 is configured; confirm it in the browser." in english)
   check("guided browser setup is localized", "Set up Chrome" in english and "Quit and reopen %1 to activate Mailbox Local Bridge." in english and "Drag Mailbox onto the page" in english and catalog["es"]["Turn on Developer mode"] == "Activa el Modo de desarrollador")
@@ -216,7 +217,7 @@ def test_marketplace_structure():
   check("marketplace sees exactly one root plugin manifest", marketplace_manifests == [ROOT / "manifest.json"], str(marketplace_manifests))
   check("marketplace plugin ID is namespaced and non-reserved", manifest["id"].startswith("io.github.avillagran.") and not manifest["id"].startswith("omarchy."))
   check("plugin version advances with the guided Chrome window", manifest["version"] == "0.0.6", manifest["version"])
-  check("extension version preserves live revision", json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())["version"] == "0.0.5")
+  check("extension version advances with reply hand-off", json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())["version"] == "0.0.6")
   check("README documents Gmail and HEY support", "Gmail and HEY" in readme and "https://app.hey.com/*" in readme)
   check("marketplace root README documents installation", "## Installation" in readme and "omarchy plugin add" in readme)
   check("marketplace root README documents removal", "## Removal" in readme and "omarchy plugin remove" in readme)
@@ -279,6 +280,66 @@ def test_mark_as_read_keeps_messages():
   mark = next(line for line in panel.splitlines() if '"mark-local-read"' in line)
   check("mark as read button keeps rows in the panel", "root.emails = []" not in mark and "Object.assign({}, email, { read: true })" in mark)
   check("read rows drop the unread highlight", "font.bold: !modelData.read" in panel and "modelData.read ? 0.04 : 0.16" in panel)
+
+
+def test_reply_drafts():
+  drafts = ROOT / "bin/mailbox-drafts.js"
+  def call(home, command, request):
+    return subprocess.run(["node", str(drafts), command], input=json.dumps(request) + "\n", capture_output=True, text=True, env={**os.environ, "HOME": str(home)}, timeout=20)
+  with tempfile.TemporaryDirectory() as directory:
+    home = Path(directory)
+    request = {"account": "reader@example.test", "threadId": "18c0ffee", "index": "2", "provider": "gmail", "from": "Ada", "subject": "Hello", "text": "Line one\nLine two"}
+    saved = call(home, "save", request)
+    check("reply draft saves from stdin", saved.returncode == 0, saved.stderr)
+    folder = home / ".local/state/omarchy/mailbox/drafts"
+    files = list(folder.glob("*.json"))
+    check("reply draft is private to the user", len(files) == 1 and stat.S_IMODE(files[0].stat().st_mode) == 0o600 and stat.S_IMODE(folder.stat().st_mode) == 0o700, str(files))
+    stored = json.loads(files[0].read_text()) if files else {}
+    check("reply draft rebuilds the Gmail thread link", stored.get("url") == "https://mail.google.com/mail/u/2/#inbox/18c0ffee", str(stored.get("url")))
+    loaded = json.loads(call(home, "load", {"account": request["account"], "threadId": request["threadId"]}).stdout)
+    check("reply draft survives and reloads", loaded.get("text") == "Line one\nLine two", str(loaded))
+    bad = call(home, "save", {**request, "threadId": "x/../../evil", "index": "9999"})
+    bad_draft = next((json.loads(f.read_text()) for f in folder.glob("*.json") if json.loads(f.read_text()).get("threadId") == "x/../../evil"), {})
+    check("reply draft refuses links that are not provider threads", bad.returncode == 0 and bad_draft.get("url") == "", str(bad_draft))
+    hey = call(home, "save", {**request, "threadId": "H1", "provider": "hey", "url": "https://evil.example/topics/1"})
+    hey_draft = next((json.loads(f.read_text()) for f in folder.glob("*.json") if json.loads(f.read_text()).get("threadId") == "H1"), {})
+    check("reply draft keeps only HEY pages for HEY", hey.returncode == 0 and hey_draft.get("url") == "", str(hey_draft))
+    target = files[0]
+    victim = home / "victim.txt"
+    victim.write_text("keep")
+    target.unlink()
+    target.symlink_to(victim)
+    linked = call(home, "save", request)
+    check("reply draft never writes through a symlink", linked.returncode != 0 and victim.read_text() == "keep", linked.stderr)
+    target.unlink()
+    call(home, "discard", {"account": request["account"], "threadId": request["threadId"]})
+    check("reply draft can be discarded", not target.exists())
+
+    # Native host hands a fresh draft to the extension and nothing else.
+    call(home, "save", request)
+    draft_file = next(f for f in folder.glob("*.json") if json.loads(f.read_text()).get("threadId") == "18c0ffee")
+    draft_id = draft_file.stem
+    response = native_message(home, {"type": "mailbox-reply-request", "id": draft_id})
+    check("host refuses a draft that was not handed off", response.get("ok") is False, str(response))
+    data = json.loads(draft_file.read_text()); data["handedOffAt"] = int(time.time() * 1000); draft_file.write_text(json.dumps(data))
+    response = native_message(home, {"type": "mailbox-reply-request", "id": draft_id})
+    check("host returns the handed-off reply", response.get("ok") is True and response.get("text") == "Line one\nLine two" and response.get("url") == "https://mail.google.com/mail/u/2/#inbox/18c0ffee", str(response))
+    response = native_message(home, {"type": "mailbox-reply-request", "id": "../../etc/passwd"})
+    check("host rejects malformed reply ids", response.get("ok") is False, str(response))
+  panel = (ROOT / "Panel.qml").read_text()
+  content = (ROOT / "bridge-extension/source/content.js").read_text()
+  reply = (ROOT / "bridge-extension/source/reply.js").read_text()
+  check("reply text reaches helpers over stdin, not argv", "onStarted: write(root.replyRequest({ text: replyEditor.text }))" in panel and "replyEditor.text]" not in panel)
+  check("reply draft saves while typing and on close", "draftSaveTimer.restart()" in panel and "if (!root.opened) root.saveReplyNow()" in panel)
+  check("R opens the reply box and Ctrl+Enter hands it off", 'root.openReply(); event.accepted = true' in panel and "root.sendReplyToBrowser()" in panel)
+  check("reply is filled in Gmail but never sent", "mailbox-compose-reply" in content and "insertText" in content and not re.search(r"(?i)send", content[content.index("async function composeReply"):content.index("chrome.runtime.onMessage.addListener((message, sender, sendResponse)")]) and "never presses Send" in reply)
+
+
+def test_reading_navigation():
+  panel = (ROOT / "Panel.qml").read_text()
+  check("Space keeps reading mode while moving", "if (root.readingMode) root.expandedEmailIndex = root.selectedEmailIndex" in panel)
+  check("Shift+Space opens every message and toggles back", "event.key === Qt.Key_Space && (event.modifiers & Qt.ShiftModifier)" in panel and "root.expandAll = !root.expandAll" in panel and "root.expandAll || root.expandedEmailIndex === index" in panel)
+  check("keyboard focus starts on the modifier-aware handler", "focusTarget: keyFront" in panel)
 
 
 def test_notification_reconciliation():
@@ -538,7 +599,7 @@ def test_browser_installer():
       EXTENSION_ID: {"path": str(ROOT / "bridge-extension/source"), "location": 8}
     }}}))
     chromium_loaded = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js"), "--chromium"], env=status_env).stdout)
-    check("command-line Chromium extension reports active without a cached manifest or state field", chromium_loaded["installed"] and chromium_loaded["upToDate"] and chromium_loaded["loadedVersion"] == "0.0.5", str(chromium_loaded))
+    check("command-line Chromium extension reports active without a cached manifest or state field", chromium_loaded["installed"] and chromium_loaded["upToDate"] and chromium_loaded["loadedVersion"] == "0.0.6", str(chromium_loaded))
     (chromium_profile / "Preferences").write_text(json.dumps({"extensions": {"settings": {
       EXTENSION_ID: {"path": str(ROOT / "bridge-extension/source"), "location": 8, "state": 1}
     }}}))
@@ -798,6 +859,8 @@ def main():
   test_marketplace_structure()
   test_panel_badge_propagation()
   test_mark_as_read_keeps_messages()
+  test_reply_drafts()
+  test_reading_navigation()
   test_notification_reconciliation()
   test_native_host()
   test_bounded_inputs()

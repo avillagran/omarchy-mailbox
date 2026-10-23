@@ -12,6 +12,10 @@ const CACHE = path.join(CACHE_DIR, 'bridge.json');
 const SETTINGS = path.join(os.homedir(), '.config', 'omarchy', 'mailbox.json');
 const PENDING = path.join(CACHE_DIR, 'pending-account.json');
 const SLOT_MAP = path.join(CACHE_DIR, 'gmail-slot-accounts.json');
+const DRAFTS_DIR = path.join(os.homedir(), '.local', 'state', 'omarchy', 'mailbox', 'drafts');
+// A reply hand-off is only honoured shortly after the panel asked for it.
+const REPLY_HANDOFF_MAX_AGE_MS = 2 * 60 * 1000;
+const MAX_DRAFT_BYTES = 1024 * 1024;
 const PENDING_MAX_AGE_MS = 10 * 60 * 1000;
 const MAX_SINGLE_BODY_BYTES = 2 * 1024 * 1024;
 const MAX_ACCOUNT_BODY_BYTES = 10 * 1024 * 1024;
@@ -207,6 +211,17 @@ function handle(message) {
       fs.mkdirSync(CACHE_DIR, { recursive: true, mode: 0o700 });
       atomicWrite(file, JSON.stringify({ ...message, receivedAt: Date.now() }));
       send({ ok: true });
+      return;
+    }
+    if (message.type === 'mailbox-reply-request') {
+      const id = String(message.id || '');
+      if (!/^[a-f0-9]{32}$/.test(id)) throw new Error('Invalid reply request');
+      const draft = readJson(path.join(DRAFTS_DIR, `${id}.json`), MAX_DRAFT_BYTES);
+      if (Date.now() - Number(draft.handedOffAt || 0) > REPLY_HANDOFF_MAX_AGE_MS) throw new Error('Reply request expired');
+      const url = draft.provider === 'hey' ? (/^https:\/\/app\.hey\.com\/[A-Za-z0-9/_-]{1,256}$/.test(String(draft.url || '')) ? draft.url : '')
+        : (/^https:\/\/mail\.google\.com\/mail\/u\/[0-9]{1,3}\/#inbox\/[A-Za-z0-9_-]{1,128}$/.test(String(draft.url || '')) ? draft.url : '');
+      if (!url) throw new Error('Reply link is not a provider page');
+      send({ ok: true, provider: draft.provider === 'hey' ? 'hey' : 'gmail', url, threadId: clip(draft.threadId, 256), text: clip(draft.text, 200000) });
       return;
     }
     const prefs = settings();

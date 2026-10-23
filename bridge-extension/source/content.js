@@ -138,7 +138,39 @@
     clearTimeout(timer);
     timer = setTimeout(() => { snapshotInbox(); publishConversation(); }, 250);
   }
-  chrome.runtime.onMessage.addListener(message => {
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+  // Fill the reply box for a reply prepared in Mailbox. Gmail only: HEY keeps
+  // the text on the clipboard. The message is left for the user to send.
+  async function composeReply(threadId, value) {
+    if (heyProvider) return false;
+    const deadline = Date.now() + 15000;
+    let clicked = false;
+    let editor = null;
+    while (Date.now() < deadline) {
+      if (!threadId || location.hash.includes(threadId)) {
+        editor = [...document.querySelectorAll('div[contenteditable="true"][g_editable="true"]')].find(node => node.offsetParent !== null);
+        if (editor) break;
+        const reply = [...document.querySelectorAll('.ams.bkH[role="button"], .ams.bkH')].find(node => node.offsetParent !== null);
+        if (reply && !clicked) { reply.click(); clicked = true; }
+      }
+      await sleep(250);
+    }
+    if (!editor) return false;
+    editor.focus();
+    // Pressing Mailbox's button twice must not paste the text twice.
+    if (value.trim() && (editor.innerText || '').includes(value.trim())) return true;
+    const lines = value.split(/\r?\n/);
+    lines.forEach((line, index) => {
+      if (index > 0) document.execCommand('insertLineBreak');
+      if (line) document.execCommand('insertText', false, line);
+    });
+    return true;
+  }
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type === 'mailbox-compose-reply' && typeof message.text === 'string') {
+      composeReply(String(message.threadId || ''), message.text.slice(0, 200000)).then(ok => sendResponse({ ok }), () => sendResponse({ ok: false }));
+      return true;
+    }
     if (message?.type === 'mailbox-refresh') publish();
     if (message?.type === 'mailbox-body-policy') {
       bodyDownloadsEnabled = message.enabled === true;

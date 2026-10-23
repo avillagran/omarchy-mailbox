@@ -35,6 +35,13 @@ Panel {
   property string settingsBin: Qt.resolvedUrl("bin/mailbox-settings.js").toString().replace("file://", "")
   property string bridgeRegisterBin: Qt.resolvedUrl("bin/mailbox-bridge-register.js").toString().replace("file://", "")
   property string bridgeExtensionPath: Qt.resolvedUrl("bridge-extension/source").toString().replace("file://", "")
+  property string draftsBin: Qt.resolvedUrl("bin/mailbox-drafts.js").toString().replace("file://", "")
+  // Reply composer. Text is saved to a local draft while typing and handed to
+  // the browser extension, which fills the reply in the account; Send stays there.
+  property bool replyOpen: false
+  property var replyEmail: null
+  property string replyState: ""
+  property bool replyDirty: false
   property string forceRefreshBin: Qt.resolvedUrl("bin/mailbox-force-refresh.js").toString().replace("file://", "")
   property string bridgeInstallState: ""
   property string bridgeStatusText: ""
@@ -64,6 +71,14 @@ Panel {
   property string selectedAccount: "__all__"
   property int selectedEmailIndex: 0
   property int expandedEmailIndex: -1
+  // Space opens the selected message and keeps reading mode on while moving;
+  // Shift+Space opens every message at once.
+  property bool readingMode: false
+  property bool expandAll: false
+  // The browser extension block stays folded while everything is healthy and
+  // opens by itself whenever an install or update needs attention.
+  property bool bridgeSectionExpanded: false
+  readonly property bool bridgeSectionOpen: !root.bridgeStatusKnown || !root.bridgeUpToDate || root.bridgeSectionExpanded
   property bool returnTriggered: false
   function selectedEmail() { var rows = root.filteredEmails(); return rows.length && root.selectedEmailIndex >= 0 ? rows[root.selectedEmailIndex] : null }
   function t(key) { var msgid = root.msgids[key] || key; var selected = root.i18nCatalog[root.language] || {}; return selected[msgid] !== undefined ? selected[msgid] : msgid }
@@ -86,9 +101,49 @@ Panel {
     for (var i = 0; i < root.accounts.length; i++) last = Math.max(last, Number(root.accounts[i].lastCapturedAt || 0))
     return last > 0 ? root.t("Extension not installed") + " · 󰑐 " + root.displayDate({ dateSort: last }) : ""
   }
+  function browserFlag() { return root.bridgeBrowserTarget === "chromium" ? "--chromium" : root.bridgeBrowserTarget === "brave" ? "--brave" : root.bridgeBrowserTarget === "chrome" ? "--chrome" : "" }
+  function replyRequest(extra) {
+    var email = root.replyEmail || {}
+    var request = { account: email.account || "", threadId: email.threadId || "", index: email.index || root.gmailIndex(root.accountFor(email.account) || {}), provider: email.provider || "gmail", url: email.url || "", from: email.from || "", subject: email.subject || "" }
+    for (var key in extra) request[key] = extra[key]
+    return JSON.stringify(request) + "\n"
+  }
+  function openReply() {
+    var email = root.selectedEmail()
+    if (!email || email.notification || !email.threadId) return
+    root.replyEmail = email
+    root.replyState = ""
+    root.replyDirty = false
+    replyEditor.text = ""
+    root.replyOpen = true
+    draftLoadProc.running = true
+    Qt.callLater(function() { replyEditor.forceActiveFocus() })
+  }
+  function saveReplyNow() { if (!root.replyOpen || !root.replyDirty) return; if (draftSaveProc.running) { draftSaveTimer.restart(); return } root.replyDirty = false; root.replyState = root.t("Saving draft…"); draftSaveProc.running = true }
+  function closeReply() { root.saveReplyNow(); root.replyOpen = false; Qt.callLater(function() { keyFront.forceActiveFocus() }) }
+  function sendReplyToBrowser() { if (!root.replyOpen || draftOpenProc.running) return; root.replyDirty = false; root.replyState = root.t("Opening the reply…"); draftOpenProc.command = ["node", root.draftsBin, "open"].concat(root.browserFlag() ? [root.browserFlag()] : []); draftOpenProc.running = true }
+  function discardReply() { draftDiscardProc.running = true; root.replyDirty = false; replyEditor.text = ""; root.replyOpen = false; Qt.callLater(function() { keyFront.forceActiveFocus() }) }
   function tf(key, values) { var result = root.t(key); for (var i = 0; i < values.length; i++) result = result.replace("%" + (i + 1), values[i]); return result }
-  function moveEmail(delta) { var rows = root.filteredEmails(); if (!rows.length) return; root.selectedEmailIndex = Math.max(0, Math.min(rows.length - 1, root.selectedEmailIndex + delta)); Qt.callLater(root.ensureSelectedEmailVisible) }
-  function toggleSelectedEmail() { var email = root.selectedEmail(); if (!email || email.notification) return; root.expandedEmailIndex = root.expandedEmailIndex === root.selectedEmailIndex ? -1 : root.selectedEmailIndex; Qt.callLater(root.ensureSelectedEmailVisible) }
+  function isExpanded(index, email) { return !!email && !email.notification && (root.expandAll || root.expandedEmailIndex === index) }
+  function moveEmail(delta) {
+    var rows = root.filteredEmails(); if (!rows.length) return
+    root.selectedEmailIndex = Math.max(0, Math.min(rows.length - 1, root.selectedEmailIndex + delta))
+    if (root.readingMode) root.expandedEmailIndex = root.selectedEmailIndex
+    Qt.callLater(root.ensureSelectedEmailVisible)
+  }
+  function toggleSelectedEmail() {
+    var email = root.selectedEmail(); if (!email || email.notification) return
+    var open = root.expandedEmailIndex === root.selectedEmailIndex && root.readingMode
+    root.readingMode = !open
+    root.expandedEmailIndex = open ? -1 : root.selectedEmailIndex
+    Qt.callLater(root.ensureSelectedEmailVisible)
+  }
+  function toggleAllEmails() {
+    root.expandAll = !root.expandAll
+    root.readingMode = false
+    root.expandedEmailIndex = -1
+    Qt.callLater(root.ensureSelectedEmailVisible)
+  }
   function openSelectedEmail() { var email = root.selectedEmail(); if (email) root.openEmail(email) }
   function selectedUnread() {
     if (root.selectedAccount === "__all__") return root.totalUnread
@@ -221,6 +276,45 @@ Panel {
         : root.bridgeBrowserAutomatic && root.bridgeFlagsConfigured ? root.tf("Quit and reopen %1 to activate Mailbox Local Bridge.", [root.browserDisplayName(root.bridgeBrowserTarget)])
         : status.installed ? root.t("Enable or reload Mailbox Local Bridge in chrome://extensions.") : root.t("extensionNotInstalled")
     } catch (_) { root.bridgeInstalled = false; root.bridgeFlagsConfigured = false; root.bridgeLegacyRegistration = false; root.bridgeUpToDate = false; root.bridgeStatusKnown = true; root.bridgeStatusText = root.t("extensionCheckFailed") } } }
+  }
+
+  // Drafts go over stdin, never argv.
+  Process {
+    id: draftLoadProc
+    command: ["node", root.draftsBin, "load"]
+    stdinEnabled: true
+    onStarted: write(root.replyRequest({}))
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try {
+          var draft = JSON.parse(text)
+          if (draft.text && replyEditor.text.length === 0) { replyEditor.text = draft.text; root.replyDirty = false; root.replyState = root.tf("Draft saved %1", [root.displayDate({ dateSort: draft.savedAt })]) }
+        } catch (_) {}
+      }
+    }
+  }
+  Process {
+    id: draftSaveProc
+    command: ["node", root.draftsBin, "save"]
+    stdinEnabled: true
+    onStarted: write(root.replyRequest({ text: replyEditor.text }))
+    onExited: function(exitCode) { root.replyState = exitCode === 0 ? root.tf("Draft saved %1", [root.displayDate({ dateSort: Date.now() })]) : root.t("Could not save the draft.") }
+  }
+  Timer { id: draftSaveTimer; interval: 700; repeat: false; onTriggered: root.saveReplyNow() }
+  Process {
+    id: draftOpenProc
+    command: ["node", root.draftsBin, "open"]
+    stdinEnabled: true
+    onStarted: write(root.replyRequest({ text: replyEditor.text }))
+    onExited: function(exitCode) { if (exitCode === 0) { root.replyState = root.t("Reply opened in your browser. Review it and press Send there."); root.replyOpen = false; root.close() } }
+    stderr: StdioCollector { waitForEnd: true; onStreamFinished: { if (text.trim().length) root.replyState = root.tf("Could not open the reply: %1", [text.trim()]) } }
+  }
+  Process {
+    id: draftDiscardProc
+    command: ["node", root.draftsBin, "discard"]
+    stdinEnabled: true
+    onStarted: write(root.replyRequest({}))
   }
 
   Timer { id: bridgeStatusRetry; interval: 3500; repeat: false; onTriggered: { if (!bridgeStatusProc.running) bridgeStatusProc.running = true } }
@@ -425,7 +519,7 @@ Panel {
 
   function checkBridgeStatus() { if (!bridgeStatusProc.running) { root.bridgeUpToDate = false; root.bridgeStatusKnown = false; root.bridgeStatusText = root.t("checkingExtension"); bridgeStatusProc.running = true } }
   function showSettings() { root.settingsMode = true; root.checkBridgeStatus(); if (!shortcutLoadProc.running) shortcutLoadProc.running = true; if (!root.opened) root.open() }
-  function showInbox() { root.settingsMode = false; root.selectedEmailIndex = Math.max(0, Math.min(root.selectedEmailIndex, Math.max(0, root.filteredEmails().length - 1))); Qt.callLater(function() { keyCatcher.forceActiveFocus(); root.ensureSelectedEmailVisible() }) }
+  function showInbox() { root.settingsMode = false; root.selectedEmailIndex = Math.max(0, Math.min(root.selectedEmailIndex, Math.max(0, root.filteredEmails().length - 1))); Qt.callLater(function() { keyFront.forceActiveFocus(); root.ensureSelectedEmailVisible() }) }
   function cycleAccount(direction) {
     var tabs = ["__all__"]
     for (var i = 0; i < root.accounts.length; i++) tabs.push(root.accounts[i].email)
@@ -433,7 +527,7 @@ Panel {
     if (current < 0) current = 0
     root.selectedAccount = tabs[(current + direction + tabs.length) % tabs.length]
     root.selectedEmailIndex = 0
-    root.expandedEmailIndex = -1
+    root.expandedEmailIndex = root.readingMode ? 0 : -1
     Qt.callLater(root.ensureSelectedEmailVisible)
   }
   function setDownloadBodies(enabled) { root.downloadBodies = enabled; root.bodySettingsState = root.t("saving"); bodySettingsProc.command = ["node", root.settingsBin, "set-download-bodies", enabled ? "true" : "false"]; bodySettingsProc.running = true }
@@ -521,7 +615,7 @@ Panel {
     bar: root.bar
     open: root.opened
     centerOnBar: false
-    focusTarget: keyCatcher
+    focusTarget: keyFront
     contentWidth: panel.fittedContentWidth(Style.space(600))
     contentHeight: panel.fittedContentHeight(scroll.contentHeight + fixedChrome.implicitHeight + Style.space(8), Style.space(560))
 
@@ -534,6 +628,19 @@ Panel {
       onActivateRequested: { if (!root.settingsMode && !root.returnTriggered) root.toggleSelectedEmail() }
       onTabRequested: function(direction) { if (!root.settingsMode) root.cycleAccount(direction) }
       onTextKey: function(text) { if (root.settingsMode && (text.toLowerCase() === "i" || text.toLowerCase() === "h")) root.showInbox(); else if (!root.settingsMode && text === ",") root.showSettings() }
+      blocked: replyEditor.activeFocus
+
+      // Focused child: sees keys before the shared catcher, which ignores
+      // modifiers. Handles Shift+Space (open every message) and R (reply).
+      Item {
+        id: keyFront
+        focus: true
+        Keys.onPressed: function(event) {
+          if (root.settingsMode || root.replyOpen) return
+          if (event.key === Qt.Key_Space && (event.modifiers & Qt.ShiftModifier)) { root.toggleAllEmails(); event.accepted = true; return }
+          if ((event.text === "r" || event.text === "R") && !(event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))) { root.openReply(); event.accepted = true }
+        }
+      }
 
       Column {
         id: fixedChrome
@@ -660,7 +767,7 @@ Panel {
                 border.width: root.selectedAccount === account.email ? 1 : 0
                 border.color: root.badgeColor(account.color)
                 Text { textFormat: Text.PlainText; id: fixedAccountLabel; anchors.centerIn: parent; text: parent.account.initials + " " + (parent.account.unavailable === true ? root.t("connect") : parent.account.unread); color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; font.bold: root.selectedAccount === parent.account.email }
-                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { root.selectedAccount = parent.account.email; root.selectedEmailIndex = 0; root.expandedEmailIndex = -1; Qt.callLater(root.ensureSelectedEmailVisible) } }
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { root.selectedAccount = parent.account.email; root.selectedEmailIndex = 0; root.expandedEmailIndex = root.readingMode ? 0 : -1; Qt.callLater(root.ensureSelectedEmailVisible) } }
               }
             }
           }
@@ -709,6 +816,7 @@ Panel {
             Text {
               textFormat: Text.PlainText
               width: parent.width
+              visible: root.bridgeSectionOpen
               text: root.tf("inboxSource", [root.sourceInfo.browser || root.t("unknown"), root.sourceInfo.profile || root.t("defaultProfile")])
               color: Color.popups.text
               font.family: Style.font.family
@@ -720,12 +828,13 @@ Panel {
               radius: Style.cornerRadius
               color: root.bridgeUpToDate ? Qt.rgba(root.badgeColor("green").r, root.badgeColor("green").g, root.badgeColor("green").b, 0.24) : Qt.rgba(Color.urgent.r, Color.urgent.g, Color.urgent.b, 0.16)
               border.color: root.bridgeUpToDate ? root.badgeColor("green") : Color.urgent
-              Text { textFormat: Text.PlainText; anchors.left: parent.left; anchors.right: uninstallBridgeButton.left; anchors.verticalCenter: parent.verticalCenter; anchors.leftMargin: Style.space(10); anchors.rightMargin: Style.space(6); text: root.bridgeStatusText; color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; font.bold: true; elide: Text.ElideRight }
-              Button { id: uninstallBridgeButton; visible: root.bridgeInstalled || root.bridgeFlagsConfigured; enabled: !bridgeInstallProc.running && !flagsBridgeInstallProc.running && !bridgeUninstallProc.running; anchors.right: parent.right; anchors.rightMargin: Style.space(4); anchors.verticalCenter: parent.verticalCenter; iconText: "󰆴"; bordered: false; onClicked: root.uninstallBridge() }
+              MouseArea { anchors.fill: parent; enabled: root.bridgeUpToDate; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: root.bridgeSectionExpanded = !root.bridgeSectionExpanded }
+              Text { textFormat: Text.PlainText; anchors.left: parent.left; anchors.right: uninstallBridgeButton.left; anchors.verticalCenter: parent.verticalCenter; anchors.leftMargin: Style.space(10); anchors.rightMargin: Style.space(6); text: (root.bridgeUpToDate ? (root.bridgeSectionOpen ? "󰅀 " : "󰅂 ") : "") + root.bridgeStatusText; color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; font.bold: true; elide: Text.ElideRight }
+              Button { id: uninstallBridgeButton; visible: (root.bridgeInstalled || root.bridgeFlagsConfigured) && root.bridgeSectionOpen; enabled: !bridgeInstallProc.running && !flagsBridgeInstallProc.running && !bridgeUninstallProc.running; anchors.right: parent.right; anchors.rightMargin: Style.space(4); anchors.verticalCenter: parent.verticalCenter; iconText: "󰆴"; bordered: false; onClicked: root.uninstallBridge() }
             }
             Text {
               textFormat: Text.PlainText
-              visible: root.bridgeLegacyRegistration
+              visible: root.bridgeLegacyRegistration && root.bridgeSectionOpen
               width: parent.width
               text: root.bridgeStatusText
               wrapMode: Text.WordWrap
@@ -734,7 +843,7 @@ Panel {
               font.pixelSize: Style.font.caption
             }
             Rectangle {
-              visible: root.bridgeStatusKnown || root.bridgeInstallState.length > 0
+              visible: (root.bridgeStatusKnown || root.bridgeInstallState.length > 0) && root.bridgeSectionOpen
               width: parent.width
               height: bridgeInstallRow.implicitHeight + bridgeInstallStatus.implicitHeight + Style.space(20)
               radius: Style.cornerRadius
@@ -798,7 +907,7 @@ Panel {
               }
             }
             TextInput {
-              visible: root.bridgeStatusKnown && !root.bridgeUpToDate && !root.bridgeBrowserAutomatic
+              visible: root.bridgeStatusKnown && !root.bridgeUpToDate && !root.bridgeBrowserAutomatic && root.bridgeSectionOpen
               width: parent.width
               text: root.bridgeExtensionPath
               readOnly: true
@@ -810,7 +919,7 @@ Panel {
             }
             Text {
               textFormat: Text.PlainText
-              visible: root.bridgeInstalled && root.bridgeInstallState.length > 0
+              visible: root.bridgeInstalled && root.bridgeInstallState.length > 0 && root.bridgeSectionOpen
               width: parent.width
               text: root.bridgeInstallState
               wrapMode: Text.WrapAnywhere
@@ -985,7 +1094,65 @@ Panel {
           }
 
           Rectangle {
-            visible: root.fetchStatus === "login-required" || root.filteredEmails().length === 0
+            id: replyCard
+            visible: root.replyOpen && !root.settingsMode
+            width: parent.width
+            height: replyColumn.implicitHeight + Style.space(20)
+            radius: Style.cornerRadius
+            color: Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.10)
+            border.color: Color.accent
+            Column {
+              id: replyColumn
+              width: parent.width - Style.space(20)
+              anchors.centerIn: parent
+              spacing: Style.space(8)
+              Text { textFormat: Text.PlainText; width: parent.width; text: "󰑚 " + root.tf("Reply to %1", [root.replyEmail ? root.replyEmail.from : ""]); color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.body; font.bold: true; elide: Text.ElideRight }
+              Text { textFormat: Text.PlainText; width: parent.width; text: root.replyEmail ? (root.replyEmail.subject || root.t("noSubject")) : ""; color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
+              Rectangle {
+                width: parent.width
+                height: Math.max(Style.space(140), replyEditor.contentHeight + Style.space(16))
+                radius: Style.cornerRadius
+                color: Qt.rgba(Color.background.r, Color.background.g, Color.background.b, 0.6)
+                border.color: replyEditor.activeFocus ? Color.accent : Qt.rgba(Color.muted.r, Color.muted.g, Color.muted.b, 0.5)
+                TextEdit {
+                  id: replyEditor
+                  anchors.fill: parent
+                  anchors.margins: Style.space(8)
+                  textFormat: TextEdit.PlainText
+                  wrapMode: TextEdit.Wrap
+                  selectByMouse: true
+                  color: Color.popups.text
+                  selectionColor: Color.accent
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.body
+                  onTextChanged: { if (activeFocus || root.replyOpen) { root.replyDirty = true; draftSaveTimer.restart() } }
+                  Keys.onPressed: function(event) {
+                    if (event.key === Qt.Key_Escape) { root.closeReply(); event.accepted = true }
+                    else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && (event.modifiers & Qt.ControlModifier)) { root.sendReplyToBrowser(); event.accepted = true }
+                  }
+                }
+                Text { textFormat: Text.PlainText; anchors.left: parent.left; anchors.top: parent.top; anchors.margins: Style.space(8); visible: replyEditor.text.length === 0; text: root.t("Write your reply…"); color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.body }
+              }
+              Text { textFormat: Text.PlainText; width: parent.width; text: root.t("Mailbox opens the reply in your account with this text. Review it there and press Send."); color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.caption; wrapMode: Text.WordWrap }
+              Item {
+                width: parent.width
+                height: Style.space(32)
+                Text { textFormat: Text.PlainText; anchors.left: parent.left; anchors.right: replyButtons.left; anchors.rightMargin: Style.space(8); anchors.verticalCenter: parent.verticalCenter; text: root.replyState; color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
+                Row {
+                  id: replyButtons
+                  anchors.right: parent.right
+                  anchors.verticalCenter: parent.verticalCenter
+                  spacing: Style.space(6)
+                  Button { iconText: "󰆴"; tooltipText: root.t("Discard draft"); bordered: false; onClicked: root.discardReply() }
+                  Button { text: root.t("Close"); bordered: false; onClicked: root.closeReply() }
+                  Button { text: root.replyEmail && root.replyEmail.provider === "hey" ? root.t("Reply in HEY") : root.t("Reply in Gmail"); iconText: "󰒊"; tooltipText: "Ctrl+Enter"; bordered: true; enabled: replyEditor.text.trim().length > 0 && !draftOpenProc.running; onClicked: root.sendReplyToBrowser() }
+                }
+              }
+            }
+          }
+
+          Rectangle {
+            visible: !root.replyOpen && (root.fetchStatus === "login-required" || root.filteredEmails().length === 0)
             width: Style.space(130)
             height: Style.space(32)
             anchors.horizontalCenter: parent.horizontalCenter
@@ -1011,7 +1178,7 @@ Panel {
             id: emailRepeater
             model: root.filteredEmails()
             Rectangle {
-              visible: !root.settingsMode
+              visible: !root.settingsMode && !root.replyOpen
               width: contentColumn.width
               height: emailColumn.implicitHeight + Style.space(14)
               // Read messages stay listed without the unread tint and weight.
@@ -1029,7 +1196,7 @@ Panel {
                 Text {
                   textFormat: Text.PlainText
                   width: parent.width
-                  text: (modelData.notification ? "󰂚 " : (root.expandedEmailIndex === index ? "󰁅 " : "󰁝 ")) + (root.selectedAccount === "__all__" ? "[" + (modelData.initials || "?") + "] " : "") + modelData.from + (root.displayDate(modelData) ? " · " + root.displayDate(modelData) : "")
+                  text: (modelData.notification ? "󰂚 " : (root.isExpanded(index, modelData) ? "󰁅 " : "󰁝 ")) + (root.selectedAccount === "__all__" ? "[" + (modelData.initials || "?") + "] " : "") + modelData.from + (root.displayDate(modelData) ? " · " + root.displayDate(modelData) : "")
                   color: Color.popups.text
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
@@ -1049,13 +1216,13 @@ Panel {
                 Text {
                   textFormat: Text.PlainText
                   width: parent.width
-                  text: root.expandedEmailIndex === index ? root.emailBodyText(modelData) : modelData.snippet
+                  text: root.isExpanded(index, modelData) ? root.emailBodyText(modelData) : modelData.snippet
                   color: Qt.darker(Color.popups.text, 1.3)
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
-                  elide: root.expandedEmailIndex === index ? Text.ElideNone : Text.ElideRight
-                  wrapMode: root.expandedEmailIndex === index ? Text.WordWrap : Text.NoWrap
-                  maximumLineCount: root.expandedEmailIndex === index ? 0 : 1
+                  elide: root.isExpanded(index, modelData) ? Text.ElideNone : Text.ElideRight
+                  wrapMode: root.isExpanded(index, modelData) ? Text.WordWrap : Text.NoWrap
+                  maximumLineCount: root.isExpanded(index, modelData) ? 0 : 1
                 }
               }
               MouseArea {
@@ -1072,8 +1239,9 @@ Panel {
   }
 
   onOpenedChanged: {
+    if (!root.opened) root.saveReplyNow()
     if (root.opened) {
-      Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+      Qt.callLater(function() { keyFront.forceActiveFocus() })
       root.checkBridgeStatus()
       if (root.hostWidget) root.hostWidget.refresh()
     }

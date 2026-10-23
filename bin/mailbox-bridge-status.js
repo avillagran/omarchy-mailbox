@@ -114,8 +114,11 @@ if (commandLine && stateMissing && unpacked && flagsConfigured) active = true;
 // Recent Chrome releases also omit `state` for enabled unpacked extensions and
 // record `disable_reasons` only when the user turns one off.
 if (!commandLine && stateMissing && unpacked && !disabled) active = true;
+// Unpacked copies read the manifest from disk, so a plugin update only reaches
+// the browser after a reload. A fresh runtime report from an older copy says so.
+const staleRuntime = Boolean(runtimeVersion) && runtimeVersion !== latestVersion;
 const upToDate = active && nativeReady && unpacked && (!commandLine || flagsConfigured)
-  && loadedVersion === latestVersion && !legacyRegistration;
+  && loadedVersion === latestVersion && !staleRuntime && !legacyRegistration;
 const removalReady = installed && !nativeReady && fs.existsSync(path.join(os.homedir(), '.config', 'omarchy', 'mailbox-bridge-removing'));
 const updateReady = !removalReady && installed && !upToDate;
 console.log(JSON.stringify({ browser: browser || 'unknown', profile, installed, loadedVersion, stagedVersion, runtimeVersion,

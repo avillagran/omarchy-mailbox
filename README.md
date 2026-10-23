@@ -50,7 +50,9 @@ After a plugin update, quit and reopen Chromium or Brave; in Chrome click **Relo
 - Press `TAB` to rotate account tabs.
 - Press `LEFT` or `RIGHT` to change account.
 - Press `UP` or `DOWN` to select a message; the list follows the selection.
-- Press `SPACE` to expand or collapse the selected cached message.
+- Press `SPACE` to open the selected cached message; it stays open while you move with `UP` and `DOWN`, so you read message after message. Press `SPACE` again to close it.
+- Press `SHIFT+SPACE` to open every message in the list; press it again to close them all.
+- Press `R` to reply to the selected message. Mailbox saves what you type as a local draft while you write. **Reply in Gmail** (or `CTRL+ENTER`) opens that conversation in the matching account with the reply box already filled; you review it and press **Send** there. Mailbox never sends mail. For HEY, and whenever the reply box cannot be filled, the text is on the clipboard to paste. `ESC` closes the box and keeps the draft.
 - Press `ENTER` to open the selected conversation in its email provider.
 - Press `,` to open preferences and `LEFT` to return to the inbox.
 - The optional default shortcut is `SUPER+SHIFT+Q`; its letter is configurable in preferences.
@@ -59,7 +61,7 @@ After a plugin update, quit and reopen Chromium or Brave; in Chrome click **Relo
 
 Mailbox reads only `https://mail.google.com/*` and `https://app.hey.com/*` pages through its local extension. The extension sends snapshots to `io.github.avillagran.mailbox`, a Native Messaging host on the same machine. Mailbox does not transmit mail data to an external service. Links opened from the panel are limited to `https://mail.google.com/` and `https://app.hey.com/` addresses, and all email text is rendered as plain text.
 
-Preferences are stored in `~/.config/omarchy/mailbox.json`. Bounded message previews and optional plain-text conversation bodies are stored in `~/.cache/omarchy/mailbox/` with user-only permissions. Full bodies are captured only after the user opens the conversation in Gmail or HEY; Mailbox never opens hidden conversations to collect them because that could change remote read state. Disable **Download email content** to purge cached bodies.
+Preferences are stored in `~/.config/omarchy/mailbox.json`. Reply drafts are stored as plain text in `~/.local/state/omarchy/mailbox/drafts/` (user-only permissions) until you discard them. Bounded message previews and optional plain-text conversation bodies are stored in `~/.cache/omarchy/mailbox/` with user-only permissions. Full bodies are captured only after the user opens the conversation in Gmail or HEY; Mailbox never opens hidden conversations to collect them because that could change remote read state. Disable **Download email content** to purge cached bodies.
 
 The extension permissions are limited to Native Messaging, tabs, scripting, alarms, `https://mail.google.com/*`, and `https://app.hey.com/*`. The plugin and extension execute as unsandboxed local code, like other Omarchy plugins, so review the source and declared capabilities before installation.
 
@@ -87,6 +89,7 @@ User preferences and cache are deliberately retained. Delete them only when you 
 ```bash
 rm -f ~/.config/omarchy/mailbox.json
 rm -rf ~/.cache/omarchy/mailbox
+rm -rf ~/.local/state/omarchy/mailbox
 ```
 
 ## License

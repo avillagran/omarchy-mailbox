@@ -69,7 +69,19 @@
     "Reload Gmail and HEY": "Reload Gmail and HEY",
     "Mailbox reads your Inbox from those open tabs.": "Mailbox reads your Inbox from those open tabs.",
     "Chrome is connected.": "Chrome is connected.",
-    "Close": "Close"
+    "Close": "Close",
+    "Reply to %1": "Reply to %1",
+    "Write your reply…": "Write your reply…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "Mailbox opens the reply in your account with this text. Review it there and press Send.",
+    "Saving draft…": "Saving draft…",
+    "Draft saved %1": "Draft saved %1",
+    "Could not save the draft.": "Could not save the draft.",
+    "Opening the reply…": "Opening the reply…",
+    "Reply opened in your browser. Review it and press Send there.": "Reply opened in your browser. Review it and press Send there.",
+    "Could not open the reply: %1": "Could not open the reply: %1",
+    "Discard draft": "Discard draft",
+    "Reply in Gmail": "Reply in Gmail",
+    "Reply in HEY": "Reply in HEY"
   },
   "es": {
     "": {
@@ -141,7 +153,19 @@
     "Reload Gmail and HEY": "Recarga Gmail y HEY",
     "Mailbox reads your Inbox from those open tabs.": "Mailbox lee tu bandeja desde esas pestañas abiertas.",
     "Chrome is connected.": "Chrome está conectado.",
-    "Close": "Cerrar"
+    "Close": "Cerrar",
+    "Reply to %1": "Responder a %1",
+    "Write your reply…": "Escribe tu respuesta…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "Mailbox abre la respuesta en tu cuenta con este texto. Revísala allí y presiona Enviar.",
+    "Saving draft…": "Guardando borrador…",
+    "Draft saved %1": "Borrador guardado %1",
+    "Could not save the draft.": "No se pudo guardar el borrador.",
+    "Opening the reply…": "Abriendo la respuesta…",
+    "Reply opened in your browser. Review it and press Send there.": "Respuesta abierta en tu navegador. Revísala y presiona Enviar allí.",
+    "Could not open the reply: %1": "No se pudo abrir la respuesta: %1",
+    "Discard draft": "Descartar borrador",
+    "Reply in Gmail": "Responder en Gmail",
+    "Reply in HEY": "Responder en HEY"
   },
   "pt": {
     "": {
@@ -213,7 +237,19 @@
     "Reload Gmail and HEY": "Recarregue Gmail e HEY",
     "Mailbox reads your Inbox from those open tabs.": "O Mailbox lê sua caixa de entrada dessas abas abertas.",
     "Chrome is connected.": "O Chrome está conectado.",
-    "Close": "Fechar"
+    "Close": "Fechar",
+    "Reply to %1": "Responder a %1",
+    "Write your reply…": "Escreva sua resposta…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "O Mailbox abre a resposta na sua conta com este texto. Revise-a lá e pressione Enviar.",
+    "Saving draft…": "Salvando rascunho…",
+    "Draft saved %1": "Rascunho salvo %1",
+    "Could not save the draft.": "Não foi possível salvar o rascunho.",
+    "Opening the reply…": "Abrindo a resposta…",
+    "Reply opened in your browser. Review it and press Send there.": "Resposta aberta no navegador. Revise-a e pressione Enviar lá.",
+    "Could not open the reply: %1": "Não foi possível abrir a resposta: %1",
+    "Discard draft": "Descartar rascunho",
+    "Reply in Gmail": "Responder no Gmail",
+    "Reply in HEY": "Responder no HEY"
   },
   "fr": {
     "": {
@@ -285,7 +321,19 @@
     "Reload Gmail and HEY": "Rechargez Gmail et HEY",
     "Mailbox reads your Inbox from those open tabs.": "Mailbox lit votre boîte de réception depuis ces onglets ouverts.",
     "Chrome is connected.": "Chrome est connecté.",
-    "Close": "Fermer"
+    "Close": "Fermer",
+    "Reply to %1": "Répondre à %1",
+    "Write your reply…": "Écrivez votre réponse…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "Mailbox ouvre la réponse dans votre compte avec ce texte. Relisez-la puis appuyez sur Envoyer.",
+    "Saving draft…": "Enregistrement du brouillon…",
+    "Draft saved %1": "Brouillon enregistré %1",
+    "Could not save the draft.": "Impossible d’enregistrer le brouillon.",
+    "Opening the reply…": "Ouverture de la réponse…",
+    "Reply opened in your browser. Review it and press Send there.": "Réponse ouverte dans votre navigateur. Relisez-la et appuyez sur Envoyer.",
+    "Could not open the reply: %1": "Impossible d’ouvrir la réponse : %1",
+    "Discard draft": "Supprimer le brouillon",
+    "Reply in Gmail": "Répondre dans Gmail",
+    "Reply in HEY": "Répondre dans HEY"
   },
   "de": {
     "": {
@@ -357,7 +405,19 @@
     "Reload Gmail and HEY": "Lade Gmail und HEY neu",
     "Mailbox reads your Inbox from those open tabs.": "Mailbox liest deinen Posteingang aus diesen offenen Tabs.",
     "Chrome is connected.": "Chrome ist verbunden.",
-    "Close": "Schließen"
+    "Close": "Schließen",
+    "Reply to %1": "Antworten an %1",
+    "Write your reply…": "Schreibe deine Antwort…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "Mailbox öffnet die Antwort mit diesem Text in deinem Konto. Prüfe sie dort und drücke Senden.",
+    "Saving draft…": "Entwurf wird gespeichert…",
+    "Draft saved %1": "Entwurf gespeichert %1",
+    "Could not save the draft.": "Der Entwurf konnte nicht gespeichert werden.",
+    "Opening the reply…": "Antwort wird geöffnet…",
+    "Reply opened in your browser. Review it and press Send there.": "Antwort im Browser geöffnet. Prüfe sie und drücke dort Senden.",
+    "Could not open the reply: %1": "Die Antwort konnte nicht geöffnet werden: %1",
+    "Discard draft": "Entwurf verwerfen",
+    "Reply in Gmail": "In Gmail antworten",
+    "Reply in HEY": "In HEY antworten"
   },
   "it": {
     "": {
@@ -429,7 +489,19 @@
     "Reload Gmail and HEY": "Ricarica Gmail e HEY",
     "Mailbox reads your Inbox from those open tabs.": "Mailbox legge la tua posta in arrivo da quelle schede aperte.",
     "Chrome is connected.": "Chrome è collegato.",
-    "Close": "Chiudi"
+    "Close": "Chiudi",
+    "Reply to %1": "Rispondi a %1",
+    "Write your reply…": "Scrivi la tua risposta…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "Mailbox apre la risposta nel tuo account con questo testo. Controllala lì e premi Invia.",
+    "Saving draft…": "Salvataggio bozza…",
+    "Draft saved %1": "Bozza salvata %1",
+    "Could not save the draft.": "Impossibile salvare la bozza.",
+    "Opening the reply…": "Apertura della risposta…",
+    "Reply opened in your browser. Review it and press Send there.": "Risposta aperta nel browser. Controllala e premi Invia.",
+    "Could not open the reply: %1": "Impossibile aprire la risposta: %1",
+    "Discard draft": "Elimina bozza",
+    "Reply in Gmail": "Rispondi in Gmail",
+    "Reply in HEY": "Rispondi in HEY"
   },
   "nl": {
     "": {
@@ -501,7 +573,19 @@
     "Reload Gmail and HEY": "Herlaad Gmail en HEY",
     "Mailbox reads your Inbox from those open tabs.": "Mailbox leest je inbox uit die geopende tabbladen.",
     "Chrome is connected.": "Chrome is verbonden.",
-    "Close": "Sluiten"
+    "Close": "Sluiten",
+    "Reply to %1": "Antwoorden aan %1",
+    "Write your reply…": "Schrijf je antwoord…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "Mailbox opent het antwoord met deze tekst in je account. Controleer het daar en druk op Verzenden.",
+    "Saving draft…": "Concept opslaan…",
+    "Draft saved %1": "Concept opgeslagen %1",
+    "Could not save the draft.": "Het concept kon niet worden opgeslagen.",
+    "Opening the reply…": "Antwoord openen…",
+    "Reply opened in your browser. Review it and press Send there.": "Antwoord geopend in je browser. Controleer het en druk daar op Verzenden.",
+    "Could not open the reply: %1": "Het antwoord kon niet worden geopend: %1",
+    "Discard draft": "Concept verwijderen",
+    "Reply in Gmail": "Antwoorden in Gmail",
+    "Reply in HEY": "Antwoorden in HEY"
   },
   "pl": {
     "": {
@@ -573,7 +657,19 @@
     "Reload Gmail and HEY": "Odśwież Gmail i HEY",
     "Mailbox reads your Inbox from those open tabs.": "Mailbox odczytuje skrzynkę odbiorczą z tych otwartych kart.",
     "Chrome is connected.": "Chrome jest połączony.",
-    "Close": "Zamknij"
+    "Close": "Zamknij",
+    "Reply to %1": "Odpowiedz: %1",
+    "Write your reply…": "Napisz odpowiedź…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "Mailbox otworzy odpowiedź z tym tekstem na Twoim koncie. Sprawdź ją tam i naciśnij Wyślij.",
+    "Saving draft…": "Zapisywanie wersji roboczej…",
+    "Draft saved %1": "Zapisano wersję roboczą %1",
+    "Could not save the draft.": "Nie udało się zapisać wersji roboczej.",
+    "Opening the reply…": "Otwieranie odpowiedzi…",
+    "Reply opened in your browser. Review it and press Send there.": "Odpowiedź otwarta w przeglądarce. Sprawdź ją i naciśnij tam Wyślij.",
+    "Could not open the reply: %1": "Nie udało się otworzyć odpowiedzi: %1",
+    "Discard draft": "Odrzuć wersję roboczą",
+    "Reply in Gmail": "Odpowiedz w Gmailu",
+    "Reply in HEY": "Odpowiedz w HEY"
   },
   "ru": {
     "": {
@@ -645,7 +741,19 @@
     "Reload Gmail and HEY": "Перезагрузите Gmail и HEY",
     "Mailbox reads your Inbox from those open tabs.": "Mailbox читает входящие из этих открытых вкладок.",
     "Chrome is connected.": "Chrome подключён.",
-    "Close": "Закрыть"
+    "Close": "Закрыть",
+    "Reply to %1": "Ответить: %1",
+    "Write your reply…": "Напишите ответ…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "Mailbox откроет ответ с этим текстом в вашем аккаунте. Проверьте его там и нажмите «Отправить».",
+    "Saving draft…": "Сохранение черновика…",
+    "Draft saved %1": "Черновик сохранён %1",
+    "Could not save the draft.": "Не удалось сохранить черновик.",
+    "Opening the reply…": "Открытие ответа…",
+    "Reply opened in your browser. Review it and press Send there.": "Ответ открыт в браузере. Проверьте его и нажмите там «Отправить».",
+    "Could not open the reply: %1": "Не удалось открыть ответ: %1",
+    "Discard draft": "Удалить черновик",
+    "Reply in Gmail": "Ответить в Gmail",
+    "Reply in HEY": "Ответить в HEY"
   },
   "ja": {
     "": {
@@ -717,7 +825,19 @@
     "Reload Gmail and HEY": "Gmail と HEY を再読み込み",
     "Mailbox reads your Inbox from those open tabs.": "Mailbox は開いているそれらのタブから受信トレイを読み取ります。",
     "Chrome is connected.": "Chrome が接続されました。",
-    "Close": "閉じる"
+    "Close": "閉じる",
+    "Reply to %1": "%1 に返信",
+    "Write your reply…": "返信を入力…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "Mailbox はこのテキストを入れた返信をアカウントで開きます。内容を確認して送信を押してください。",
+    "Saving draft…": "下書きを保存中…",
+    "Draft saved %1": "下書きを保存しました %1",
+    "Could not save the draft.": "下書きを保存できませんでした。",
+    "Opening the reply…": "返信を開いています…",
+    "Reply opened in your browser. Review it and press Send there.": "ブラウザで返信を開きました。確認してから送信を押してください。",
+    "Could not open the reply: %1": "返信を開けませんでした: %1",
+    "Discard draft": "下書きを破棄",
+    "Reply in Gmail": "Gmail で返信",
+    "Reply in HEY": "HEY で返信"
   },
   "ko": {
     "": {
@@ -789,7 +909,19 @@
     "Reload Gmail and HEY": "Gmail과 HEY 새로고침",
     "Mailbox reads your Inbox from those open tabs.": "Mailbox는 열려 있는 해당 탭에서 받은편지함을 읽습니다.",
     "Chrome is connected.": "Chrome이 연결되었습니다.",
-    "Close": "닫기"
+    "Close": "닫기",
+    "Reply to %1": "%1에게 답장",
+    "Write your reply…": "답장을 입력하세요…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "Mailbox가 이 내용으로 계정에서 답장을 엽니다. 확인한 뒤 보내기를 누르세요.",
+    "Saving draft…": "임시보관함에 저장 중…",
+    "Draft saved %1": "임시 저장됨 %1",
+    "Could not save the draft.": "임시 저장하지 못했습니다.",
+    "Opening the reply…": "답장을 여는 중…",
+    "Reply opened in your browser. Review it and press Send there.": "브라우저에서 답장을 열었습니다. 확인 후 보내기를 누르세요.",
+    "Could not open the reply: %1": "답장을 열 수 없습니다: %1",
+    "Discard draft": "임시 저장 삭제",
+    "Reply in Gmail": "Gmail에서 답장",
+    "Reply in HEY": "HEY에서 답장"
   },
   "zh": {
     "": {
@@ -861,7 +993,19 @@
     "Reload Gmail and HEY": "重新加载 Gmail 和 HEY",
     "Mailbox reads your Inbox from those open tabs.": "Mailbox 从这些打开的标签页读取收件箱。",
     "Chrome is connected.": "Chrome 已连接。",
-    "Close": "关闭"
+    "Close": "关闭",
+    "Reply to %1": "回复 %1",
+    "Write your reply…": "写下你的回复…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "Mailbox 会在你的账户中打开带有此文本的回复。请在那里检查后点击发送。",
+    "Saving draft…": "正在保存草稿…",
+    "Draft saved %1": "草稿已保存 %1",
+    "Could not save the draft.": "无法保存草稿。",
+    "Opening the reply…": "正在打开回复…",
+    "Reply opened in your browser. Review it and press Send there.": "已在浏览器中打开回复。请检查后在那里点击发送。",
+    "Could not open the reply: %1": "无法打开回复：%1",
+    "Discard draft": "舍弃草稿",
+    "Reply in Gmail": "在 Gmail 中回复",
+    "Reply in HEY": "在 HEY 中回复"
   },
   "ar": {
     "": {
@@ -933,7 +1077,19 @@
     "Reload Gmail and HEY": "أعد تحميل Gmail وHEY",
     "Mailbox reads your Inbox from those open tabs.": "يقرأ Mailbox بريدك الوارد من علامات التبويب المفتوحة تلك.",
     "Chrome is connected.": "تم ربط Chrome.",
-    "Close": "إغلاق"
+    "Close": "إغلاق",
+    "Reply to %1": "الرد على %1",
+    "Write your reply…": "اكتب ردك…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "يفتح Mailbox الرد في حسابك بهذا النص. راجعه هناك ثم اضغط إرسال.",
+    "Saving draft…": "جارٍ حفظ المسودة…",
+    "Draft saved %1": "تم حفظ المسودة %1",
+    "Could not save the draft.": "تعذّر حفظ المسودة.",
+    "Opening the reply…": "جارٍ فتح الرد…",
+    "Reply opened in your browser. Review it and press Send there.": "تم فتح الرد في المتصفح. راجعه واضغط إرسال هناك.",
+    "Could not open the reply: %1": "تعذّر فتح الرد: %1",
+    "Discard draft": "تجاهل المسودة",
+    "Reply in Gmail": "الرد في Gmail",
+    "Reply in HEY": "الرد في HEY"
   },
   "tr": {
     "": {
@@ -1005,7 +1161,19 @@
     "Reload Gmail and HEY": "Gmail ve HEY'i yeniden yükleyin",
     "Mailbox reads your Inbox from those open tabs.": "Mailbox gelen kutunuzu bu açık sekmelerden okur.",
     "Chrome is connected.": "Chrome bağlandı.",
-    "Close": "Kapat"
+    "Close": "Kapat",
+    "Reply to %1": "%1 kişisine yanıt",
+    "Write your reply…": "Yanıtınızı yazın…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "Mailbox yanıtı bu metinle hesabınızda açar. Orada kontrol edip Gönder'e basın.",
+    "Saving draft…": "Taslak kaydediliyor…",
+    "Draft saved %1": "Taslak kaydedildi %1",
+    "Could not save the draft.": "Taslak kaydedilemedi.",
+    "Opening the reply…": "Yanıt açılıyor…",
+    "Reply opened in your browser. Review it and press Send there.": "Yanıt tarayıcınızda açıldı. Kontrol edip orada Gönder'e basın.",
+    "Could not open the reply: %1": "Yanıt açılamadı: %1",
+    "Discard draft": "Taslağı sil",
+    "Reply in Gmail": "Gmail'de yanıtla",
+    "Reply in HEY": "HEY'de yanıtla"
   },
   "sv": {
     "": {
@@ -1077,7 +1245,19 @@
     "Reload Gmail and HEY": "Läs in Gmail och HEY igen",
     "Mailbox reads your Inbox from those open tabs.": "Mailbox läser din inkorg från de öppna flikarna.",
     "Chrome is connected.": "Chrome är anslutet.",
-    "Close": "Stäng"
+    "Close": "Stäng",
+    "Reply to %1": "Svara %1",
+    "Write your reply…": "Skriv ditt svar…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "Mailbox öppnar svaret med den här texten i ditt konto. Granska det där och tryck på Skicka.",
+    "Saving draft…": "Sparar utkast…",
+    "Draft saved %1": "Utkast sparat %1",
+    "Could not save the draft.": "Det gick inte att spara utkastet.",
+    "Opening the reply…": "Öppnar svaret…",
+    "Reply opened in your browser. Review it and press Send there.": "Svaret öppnades i webbläsaren. Granska det och tryck på Skicka där.",
+    "Could not open the reply: %1": "Det gick inte att öppna svaret: %1",
+    "Discard draft": "Släng utkast",
+    "Reply in Gmail": "Svara i Gmail",
+    "Reply in HEY": "Svara i HEY"
   },
   "da": {
     "": {
@@ -1149,7 +1329,19 @@
     "Reload Gmail and HEY": "Genindlæs Gmail og HEY",
     "Mailbox reads your Inbox from those open tabs.": "Mailbox læser din indbakke fra de åbne faner.",
     "Chrome is connected.": "Chrome er forbundet.",
-    "Close": "Luk"
+    "Close": "Luk",
+    "Reply to %1": "Svar %1",
+    "Write your reply…": "Skriv dit svar…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "Mailbox åbner svaret med denne tekst i din konto. Gennemse det dér, og tryk på Send.",
+    "Saving draft…": "Gemmer kladde…",
+    "Draft saved %1": "Kladde gemt %1",
+    "Could not save the draft.": "Kladden kunne ikke gemmes.",
+    "Opening the reply…": "Åbner svaret…",
+    "Reply opened in your browser. Review it and press Send there.": "Svaret er åbnet i din browser. Gennemse det, og tryk på Send dér.",
+    "Could not open the reply: %1": "Svaret kunne ikke åbnes: %1",
+    "Discard draft": "Kassér kladde",
+    "Reply in Gmail": "Svar i Gmail",
+    "Reply in HEY": "Svar i HEY"
   },
   "no": {
     "": {
@@ -1221,7 +1413,19 @@
     "Reload Gmail and HEY": "Last inn Gmail og HEY på nytt",
     "Mailbox reads your Inbox from those open tabs.": "Mailbox leser innboksen din fra de åpne fanene.",
     "Chrome is connected.": "Chrome er koblet til.",
-    "Close": "Lukk"
+    "Close": "Lukk",
+    "Reply to %1": "Svar %1",
+    "Write your reply…": "Skriv svaret ditt…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "Mailbox åpner svaret med denne teksten i kontoen din. Se over det der og trykk Send.",
+    "Saving draft…": "Lagrer utkast…",
+    "Draft saved %1": "Utkast lagret %1",
+    "Could not save the draft.": "Kunne ikke lagre utkastet.",
+    "Opening the reply…": "Åpner svaret…",
+    "Reply opened in your browser. Review it and press Send there.": "Svaret er åpnet i nettleseren. Se over det og trykk Send der.",
+    "Could not open the reply: %1": "Kunne ikke åpne svaret: %1",
+    "Discard draft": "Forkast utkast",
+    "Reply in Gmail": "Svar i Gmail",
+    "Reply in HEY": "Svar i HEY"
   },
   "fi": {
     "": {
@@ -1293,7 +1497,19 @@
     "Reload Gmail and HEY": "Lataa Gmail ja HEY uudelleen",
     "Mailbox reads your Inbox from those open tabs.": "Mailbox lukee saapuneet viestisi noilta avoimilta välilehdiltä.",
     "Chrome is connected.": "Chrome on yhdistetty.",
-    "Close": "Sulje"
+    "Close": "Sulje",
+    "Reply to %1": "Vastaa: %1",
+    "Write your reply…": "Kirjoita vastauksesi…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "Mailbox avaa vastauksen tällä tekstillä tililläsi. Tarkista se siellä ja paina Lähetä.",
+    "Saving draft…": "Tallennetaan luonnosta…",
+    "Draft saved %1": "Luonnos tallennettu %1",
+    "Could not save the draft.": "Luonnosta ei voitu tallentaa.",
+    "Opening the reply…": "Avataan vastausta…",
+    "Reply opened in your browser. Review it and press Send there.": "Vastaus avattiin selaimessa. Tarkista se ja paina siellä Lähetä.",
+    "Could not open the reply: %1": "Vastausta ei voitu avata: %1",
+    "Discard draft": "Hylkää luonnos",
+    "Reply in Gmail": "Vastaa Gmailissa",
+    "Reply in HEY": "Vastaa HEYssä"
   },
   "cs": {
     "": {
@@ -1365,6 +1581,18 @@
     "Reload Gmail and HEY": "Znovu načtěte Gmail a HEY",
     "Mailbox reads your Inbox from those open tabs.": "Mailbox čte vaši doručenou poštu z těchto otevřených karet.",
     "Chrome is connected.": "Chrome je připojen.",
-    "Close": "Zavřít"
+    "Close": "Zavřít",
+    "Reply to %1": "Odpovědět: %1",
+    "Write your reply…": "Napište odpověď…",
+    "Mailbox opens the reply in your account with this text. Review it there and press Send.": "Mailbox otevře odpověď s tímto textem ve vašem účtu. Zkontrolujte ji tam a stiskněte Odeslat.",
+    "Saving draft…": "Ukládání konceptu…",
+    "Draft saved %1": "Koncept uložen %1",
+    "Could not save the draft.": "Koncept se nepodařilo uložit.",
+    "Opening the reply…": "Otevírání odpovědi…",
+    "Reply opened in your browser. Review it and press Send there.": "Odpověď je otevřená v prohlížeči. Zkontrolujte ji a stiskněte tam Odeslat.",
+    "Could not open the reply: %1": "Odpověď se nepodařilo otevřít: %1",
+    "Discard draft": "Zahodit koncept",
+    "Reply in Gmail": "Odpovědět v Gmailu",
+    "Reply in HEY": "Odpovědět v HEY"
   }
 }
