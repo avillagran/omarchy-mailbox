@@ -193,7 +193,13 @@ BarWidget {
     panelLoader.item.language = root.language
     panelLoader.item.msgids = root.msgids
   }
+  // The panel keeps checking the extension; an outdated copy gets a "!".
+  readonly property bool bridgeNeedsUpdate: panelLoader.item ? panelLoader.item.bridgeNeedsUpdate === true : false
   function label() {
+    if (root.bridgeNeedsUpdate) return "! " + root.accountLabel()
+    return root.accountLabel()
+  }
+  function accountLabel() {
     if (!root.displayedAccount) return "󰊫 0"
     var count = root.displayedAccount.unread > 99 ? "99+" : String(root.displayedAccount.unread)
     return "󰊫 " + (root.displayedAccount.initials || "?") + " " + count
@@ -214,7 +220,7 @@ BarWidget {
     foreground: root.displayedAccount ? root.badgeColor(root.displayedAccount.color) : Color.foreground
     activeColor: root.displayedAccount ? root.badgeColor(root.displayedAccount.color) : Color.accent
     active: root.totalUnread > 0
-    tooltipText: root.displayedAccount ? root.tf("accountUnreadTooltip", [root.displayedAccount.email, root.displayedAccount.unread]) : root.t("gmailUnreadInbox")
+    tooltipText: root.bridgeNeedsUpdate ? root.t("Enable or reload Mailbox Local Bridge in chrome://extensions.") : root.displayedAccount ? root.tf("accountUnreadTooltip", [root.displayedAccount.email, root.displayedAccount.unread]) : root.t("gmailUnreadInbox")
     onPressed: function(buttonPressed) {
       if (buttonPressed === Qt.LeftButton) {
         root.panelData(false)

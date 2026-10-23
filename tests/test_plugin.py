@@ -339,6 +339,10 @@ def test_reply_drafts():
   background = (ROOT / "bridge-extension/source/background.js").read_text()
   check("extension reloads itself after a plugin update", 'chrome.runtime.getURL("manifest.json")' in background and "chrome.runtime.reload()" in background)
   check("reply errors name a stale extension instead of a missing one", "is still running Mailbox Local Bridge" in (ROOT / "bin/mailbox-force-refresh.js").read_text())
+  bar = (ROOT / "BarWidget.qml").read_text()
+  check("outdated extension shows ! in the bar", 'if (root.bridgeNeedsUpdate) return "! " + root.accountLabel()' in bar and "panelLoader.item.bridgeNeedsUpdate" in bar)
+  check("header ! opens preferences", "id: bridgeWarningButton" in panel and "visible: root.bridgeNeedsUpdate" in panel and "onClicked: root.showSettings()" in panel[panel.index("id: bridgeWarningButton"):][:600])
+  check("extension status is rechecked while the panel is closed", "interval: 120000; repeat: true; running: true; triggeredOnStart: true" in panel)
   check("reply is filled in Gmail but never sent", "mailbox-compose-reply" in content and "insertText" in content and not re.search(r"(?i)send", content[content.index("async function composeReply"):content.index("chrome.runtime.onMessage.addListener((message, sender, sendResponse)")]) and "never presses Send" in reply)
 
 

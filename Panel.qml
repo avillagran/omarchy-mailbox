@@ -80,6 +80,9 @@ Panel {
   // The browser extension block stays folded while everything is healthy and
   // opens by itself whenever an install or update needs attention.
   property bool bridgeSectionExpanded: false
+  // Installed but not current (older running copy, disabled, missing host).
+  // Kept from the last finished check so the bar badge does not flicker.
+  property bool bridgeNeedsUpdate: false
   readonly property bool bridgeSectionOpen: !root.bridgeStatusKnown || !root.bridgeUpToDate || root.bridgeSectionExpanded
   property bool returnTriggered: false
   function selectedEmail() { var rows = root.filteredEmails(); return rows.length && root.selectedEmailIndex >= 0 ? rows[root.selectedEmailIndex] : null }
@@ -269,6 +272,7 @@ Panel {
         }
       }
       root.bridgeInstalled = status.installed === true
+      root.bridgeNeedsUpdate = status.installed === true && status.upToDate !== true
       root.bridgeLegacyRegistration = status.legacyRegistration === true
       root.bridgeBrowserAutomatic = status.automatic === true
       root.bridgeFlagsConfigured = status.flagsConfigured === true
@@ -337,6 +341,7 @@ Panel {
     onExited: root.refreshDrafts()
   }
 
+  Timer { interval: 120000; repeat: true; running: true; triggeredOnStart: true; onTriggered: { if (!bridgeStatusProc.running) bridgeStatusProc.running = true } }
   Timer { id: bridgeStatusRetry; interval: 3500; repeat: false; onTriggered: { if (!bridgeStatusProc.running) bridgeStatusProc.running = true } }
 
   Process {
@@ -675,6 +680,17 @@ Panel {
           // Preferences also open from the bar icon's right click, which is easy
           // to miss. Hovering the header reveals a labeled shortcut instead.
           HoverHandler { id: headerHover }
+          Button {
+            id: bridgeWarningButton
+            visible: root.bridgeNeedsUpdate
+            width: visible ? implicitWidth : 0
+            text: "!"
+            foreground: Color.urgent
+            bordered: false
+            tooltipText: root.t("Enable or reload Mailbox Local Bridge in chrome://extensions.")
+            anchors.verticalCenter: parent.verticalCenter
+            onClicked: root.showSettings()
+          }
           Text {
             textFormat: Text.PlainText
             text: "󰊫"
