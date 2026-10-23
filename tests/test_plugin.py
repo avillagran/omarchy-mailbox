@@ -9,6 +9,7 @@ import stat
 import struct
 import subprocess
 import tempfile
+import time
 
 ROOT = Path(__file__).resolve().parents[1]
 HOST = ROOT / "bin/mailbox-bridge-host.js"
@@ -45,20 +46,44 @@ def native_message(home, message):
 
 
 def test_static_files():
-  for filename in ["manifest.json", "bridge-extension/source/manifest.json", "i18n.json", "config/accounts.example.json"]:
+  for filename in ["manifest.json", "bridge-extension/source/manifest.json", "i18n.json"]:
     json.loads((ROOT / filename).read_text())
     check(f"valid JSON: {filename}", True)
   for filename in [*ROOT.glob("bin/*.js"), *ROOT.glob("bridge-extension/source/*.js")]:
     result = run(["node", "--check", str(filename)])
     check(f"JavaScript syntax: {filename.relative_to(ROOT)}", result.returncode == 0, result.stderr)
-  check("no privileged bridge helper is shipped", not (ROOT / "bin/mailbox-bridge-system-install.sh").exists())
-  check("panel has no privileged bridge process", "systemBridgeInstallProc" not in (ROOT / "Panel.qml").read_text())
+  panel = (ROOT / "Panel.qml").read_text()
+  readme = (ROOT / "README.md").read_text()
+  check("bridge reports its runtime version through native health", "bridgeVersion: chrome.runtime.getManifest().version" in (ROOT / "bridge-extension/source/background.js").read_text() and "bridge-health.json" in (ROOT / "bin/mailbox-bridge-status.js").read_text())
+  check("no privileged helper or system registration is shipped", not (ROOT / "bin/mailbox-bridge-system-install.sh").exists() and not (ROOT / "bin/mailbox-system-extension.py").exists() and not (ROOT / "bridge-extension.crx").exists())
+  scanned = [path for path in ROOT.rglob("*") if path.is_file() and ".git" not in path.parts and "tests" not in path.parts and path.suffix in {".qml", ".js", ".py", ".sh", ".md", ".json"}]
+  check("no privilege boundary anywhere in the shipped tree", not any(re.search(r"\b(sudo|pkexec|polkit)\b", path.read_text(errors="replace")) for path in scanned))
+  check("no setup-named helper triggers the installer capability", not any(re.search(r"(?:^|[-_])(install|installer|setup|uninstall)(?:[-_.]|$)", path.name, re.I) for path in ROOT.rglob("*") if ".git" not in path.parts))
   check("no browser-killing restart helper is shipped", not (ROOT / "bin/mailbox-browser-restart.py").exists())
-  check("panel cannot restart unrelated browsers", "restartBrowser" not in (ROOT / "Panel.qml").read_text())
+  check("no predictable /tmp paths in runtime code", not any("/tmp/" in path.read_text(errors="replace") for path in scanned if path.suffix != ".md"))
+  check("panel offers automatic Chromium and Brave installation", 'id: installChromiumBridgeButton' in panel and 'id: installBraveBridgeButton' in panel and 'command: ["node", root.bridgeRegisterBin, root.bridgeBrowserTarget === "brave" ? "--brave" : "--chromium"]' in panel)
+  check("panel offers guided Chrome setup", 'id: installChromeBridgeButton' in panel and 'command: ["node", root.browserExtensionSetupBin, "--chrome"]' in panel)
+  check("browser setup stays available after another browser is configured", 'visible: root.bridgeStatusKnown || root.bridgeInstallState.length > 0\n              width: parent.width' in panel)
+  check("browser selection saves the last rapid choice", 'function saveBrowserTarget(browser)' in panel and 'root.pendingBrowserTargetSave = browser' in panel and 'root.saveBrowserTarget(pending)' in panel)
+  busy = 'if (bridgeInstallProc.running || flagsBridgeInstallProc.running || browserExtensionSetupProc.running || bridgeUninstallProc.running) return'
+  check("browser installers cannot overlap and stale green status clears", busy in panel and 'root.bridgeUpToDate = false' in panel[panel.index('function installFlagsBridge(browser)'):panel.index('function uninstallBridge()')])
+  check("browser installer failures recheck status", 'bridgeStatusRetry.restart()' in panel[panel.index('id: bridgeInstallProc'):panel.index('id: browserExtensionSetupProc')])
+  check("uninstall cannot overlap an installer", panel.count(busy) >= 3 and 'enabled: !bridgeInstallProc.running && !flagsBridgeInstallProc.running && !browserExtensionSetupProc.running && !bridgeUninstallProc.running' in panel)
+  check("status errors clear stale green result", 'catch (_) { root.bridgeInstalled = false; root.bridgeFlagsConfigured = false; root.bridgeLegacyRegistration = false; root.bridgeUpToDate = false; root.bridgeStatusKnown = true' in panel)
+  check("selected browser status does not fall back during setup", 'property string bridgeBrowserTarget: ""' in panel and 'if (!root.bridgeBrowserTarget && !root.bridgeBrowserAutomatic && status.flagsConfigured && !status.installed)' in panel and 'root.bridgeBrowserTarget = browser' in panel)
+  check("chosen browser survives a panel reload", 'command: ["node", root.settingsBin, "set-browser", root.bridgeBrowserTarget]' in panel and 'value.bridgeBrowserTarget || ""' in panel)
+  check("panel never opens blocked refresh page before extension is active", 'if (root.bridgeUpToDate)' in panel and '["node", root.forceRefreshBin, "--chromium"]' in panel)
+  check("refresh follows explicit Brave and Chrome selection", '["node", root.forceRefreshBin, "--brave"]' in panel and '["node", root.forceRefreshBin, "--chrome"]' in panel)
+  check("status does not claim an unverified live extension", 'root.tf("Extension %1 is configured; confirm it in the browser."' in panel)
+  check("browser restart is manual and does not kill other sessions", "restartBrowser" not in panel)
+  text_elements = re.findall(r"(?<![A-Za-z.])Text \{[^\n]*(?:\n\s+[^\n]*)?", panel)
+  check("every QML Text renders plain text", text_elements and all("textFormat: Text.PlainText" in element for element in text_elements), str(len(text_elements)))
+  check("panel opens only provider URLs from bridge data", "safeInboxUrl" in (ROOT / "bin/mailbox-bridge-host.js").read_text() and "mail\\.google\\.com|app\\.hey\\.com" in (ROOT / "bin/mailbox.js").read_text())
+  check("README describes the rootless flags-file setup", "chromium-flags.conf" in readme and "brave-flags.conf" in readme and "Load unpacked" in readme and "mailbox-bridge-register.js" in readme)
   shebang_files = [path for path in (ROOT / "bin").iterdir() if path.is_file() and path.read_bytes()[:2] == b"#!"]
   check("all shebang helpers are executable", all(os.access(path, os.X_OK) for path in shebang_files))
   check("no generated Python artifacts", not any(path.suffix == ".pyc" or "__pycache__" in path.parts for path in ROOT.rglob("*")))
-  check("private CRX key is ignored", "bridge-extension.pem" in (ROOT / ".gitignore").read_text().splitlines())
+  check("private CRX key and packed CRX are ignored", {"bridge-extension.pem", "bridge-extension.crx"} <= set((ROOT / ".gitignore").read_text().splitlines()))
 
 
 def test_i18n():
@@ -66,7 +91,10 @@ def test_i18n():
   english = catalog["en"]
   keys = set(english) - {""}
   check("i18n has 19 locales", len(catalog) == 19, str(sorted(catalog)))
-  check("i18n has 64 message IDs", len(keys) == 64, str(len(keys)))
+  check("i18n has 53 message IDs", len(keys) == 53, str(len(keys)))
+  check("automatic Brave setup is localized", catalog["es"]["Install in Brave"] == "Instalar en Brave")
+  check("configured status copy is localizable", "Extension %1 is configured; confirm it in the browser." in english)
+  check("guided browser setup is localized", "Set up Chrome" in english and "Quit and reopen %1 to activate Mailbox Local Bridge." in english and "Extension folder copied. In your browser menu, open Extensions > Manage extensions, enable Developer mode, choose Load unpacked, and paste the copied path." in english)
   for locale, translations in catalog.items():
     check(f"i18n coverage: {locale}", set(translations) - {""} == keys)
     check(f"i18n plural header: {locale}", "" in translations)
@@ -77,7 +105,7 @@ def test_i18n():
       if actual != expected:
         placeholder_errors.append(f"{message}: {actual} != {expected}")
     check(f"i18n placeholders: {locale}", not placeholder_errors, "; ".join(placeholder_errors))
-    sync_values = [translations["Synchronizing open Gmail tabs…"], translations["Browser restarted · synchronizing Gmail…"]]
+    sync_values = [translations["Synchronizing open Gmail tabs…"]]
     check(f"provider-neutral synchronization copy: {locale}", all("gmail" not in value.lower() for value in sync_values), str(sync_values))
   check("Spanish synchronization copy says email", catalog["es"]["Synchronizing open Gmail tabs…"] == "Sincronizando email…")
   check("notification instruction is localized", catalog["es"]["Enable notifications for this account."] == "Activa las notificaciones para esta cuenta.")
@@ -86,7 +114,7 @@ def test_i18n():
 def test_versions():
   extension_manifest = json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())
   extension_version = extension_manifest["version"]
-  check("extension version in user installer", extension_version in (ROOT / "bin/mailbox-bridge-install.js").read_text())
+  check("extension version in user registration helper", extension_version in (ROOT / "bin/mailbox-bridge-register.js").read_text())
   key = base64.b64decode(extension_manifest["key"])
   calculated_id = "".join("abcdefghijklmnop"[int(nibble, 16)] for nibble in hashlib.sha256(key).hexdigest()[:32])
   check("unpacked extension key matches native host origin", calculated_id == EXTENSION_ID, calculated_id)
@@ -187,12 +215,12 @@ def test_marketplace_structure():
   marketplace_manifests = [path for path in ROOT.rglob("manifest.json") if len(path.relative_to(ROOT).parts) <= 2]
   check("marketplace sees exactly one root plugin manifest", marketplace_manifests == [ROOT / "manifest.json"], str(marketplace_manifests))
   check("marketplace plugin ID is namespaced and non-reserved", manifest["id"].startswith("io.github.avillagran.") and not manifest["id"].startswith("omarchy."))
-  check("plugin version advances after rootless browser setup", manifest["version"] == "0.0.4", manifest["version"])
-  check("extension version advances with exact message timestamps", json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())["version"] == "0.0.3")
+  check("plugin version advances after rootless browser setup", manifest["version"] == "0.0.5", manifest["version"])
+  check("extension version preserves live revision", json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())["version"] == "0.0.5")
   check("README documents Gmail and HEY support", "Gmail and HEY" in readme and "https://app.hey.com/*" in readme)
   check("marketplace root README documents installation", "## Installation" in readme and "omarchy plugin add" in readme)
   check("marketplace root README documents removal", "## Removal" in readme and "omarchy plugin remove" in readme)
-  check("marketplace root README documents dependencies and rootless setup", "## Requirements" in readme and "## External dependencies and browser setup" in readme)
+  check("marketplace root README documents dependencies and rootless setup", "## Requirements" in readme and "## External dependencies and browser setup" in readme and "Nothing runs as root" in readme)
   check("marketplace root license exists", (ROOT / "LICENSE").is_file() and "Andrés Villagrán" in (ROOT / "LICENSE").read_text())
   preview = ROOT / "preview.png"
   header = preview.read_bytes()[:24]
@@ -204,6 +232,8 @@ def test_marketplace_structure():
 
 def test_panel_badge_propagation():
   source = (ROOT / "Panel.qml").read_text()
+  check("inbox connect button leads to preferences instead of a missing installer", "root.installBridge()" not in source)
+  check("header hover reveals an animated Preferences button", "HoverHandler { id: headerHover }" in source and "id: preferencesReveal" in source and "Behavior on width" in source and 'root.t("Preferences")' in source)
   check("badge changes propagate to visible email rows", "emailCopy[k].account === email" in source and "root.emails = emailCopy" in source)
   check("badge changes propagate to host email rows", "hostEmails[h].account === email" in source and "root.hostWidget.emails = hostEmails" in source)
   check("panel accepts direct HEY topic URLs", "app\\.hey\\.com\\/topics" in source)
@@ -214,6 +244,7 @@ def test_panel_badge_propagation():
   check("notification warning explains itself on hover", "PanelToolTip" in source and 'root.t("Enable notifications for this account.")' in source and "notificationStatusMouse.containsMouse" in source)
   check("sync status stays in fixed header space", "id: headerSyncStatus" in source and "opacity: root.syncing ? 1 : 0" in source and source.index("id: headerSyncStatus") < source.index('iconText: "󰑐"'))
   check("sync status does not shift the message list", 'Rectangle {\n            visible: root.syncing' not in source)
+  check("browser setup explains user-owned unpacked install", "Load unpacked" in source and "Developer mode" in source and "root.openBrowserExtensionSetup()" in source)
 
 
 def test_notification_reconciliation():
@@ -230,6 +261,7 @@ def test_notification_reconciliation():
     (cache / "bridge.json").write_text(json.dumps({"accounts": {"preview@example.test": {"account": "preview@example.test", "index": "0", "unread": 1, "capturedAt": now, "emails": [{"threadId": "T1", "from": "Example", "subject": "Example", "date": "Sep 17, 2026, 4:45 PM"}]}}}))
     (history / "gmail.json").write_text(json.dumps({"timestamp": now - 1000, "app": "Google Chrome", "summary": "Gmail", "body": "Older notification"}))
     result = run(["node", str(ROOT / "bin/mailbox.js")], env={**os.environ, "HOME": str(home)})
+    check("mailbox snapshot command exits cleanly", result.returncode == 0, result.stderr)
     data = json.loads(result.stdout)
     check("notifications older than bridge capture are reconciled", result.returncode == 0 and not data.get("desktopNotifications") and all(not row.get("notification") for row in data["emails"]), str(data))
     (history / "gmail-new.json").write_text(json.dumps({"timestamp": now + 1000, "app": "Google Chrome", "summary": "Gmail", "body": "New email https://mail.google.com/"}))
@@ -325,6 +357,15 @@ def test_settings():
     check("message limit clamps to one", json.loads(result.stdout)["maxMessagesPerAccount"] == 1)
     result = run(["node", str(helper), "set-limit", "999"], env=env)
     check("message limit clamps to 200", json.loads(result.stdout)["maxMessagesPerAccount"] == 200)
+    result = run(["node", str(helper), "set-browser", "chrome"], env=env)
+    check("explicit Chrome selection persists through settings reload", result.returncode == 0 and json.loads(run(["node", str(helper), "get"], env=env).stdout).get("bridgeBrowserTarget") == "chrome", result.stderr)
+    result = run(["node", str(helper), "set-browser", "brave"], env=env)
+    check("Brave selection persists without losing unrelated settings", result.returncode == 0 and json.loads(result.stdout).get("bridgeBrowserTarget") == "brave" and json.loads(result.stdout)["maxMessagesPerAccount"] == 200, result.stderr)
+    check("unsupported browser selection is rejected", run(["node", str(helper), "set-browser", "firefox"], env=env).returncode == 2)
+    concurrent = [subprocess.Popen(["node", str(helper), "set", f"parallel{i}@example.com", "P", "green"], cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE) for i in range(24)]
+    results = [process.communicate(timeout=30) for process in concurrent]
+    settings = json.loads((home / ".config/omarchy/mailbox.json").read_text())
+    check("parallel settings updates retain all accounts and browser choice", all(process.returncode == 0 for process in concurrent) and all(f"parallel{i}@example.com" in settings["accounts"] for i in range(24)) and settings["bridgeBrowserTarget"] == "brave", str([(process.returncode, stderr.decode(errors="replace")) for process, (_, stderr) in zip(concurrent, results) if process.returncode]))
     check("invalid shortcut is rejected", run(["node", str(helper), "set-shortcut", "7"], env=env).returncode == 2)
     check("invalid color role is rejected", run(["node", str(helper), "set", "person@example.com", "AV", "invalid"], env=env).returncode == 2)
 
@@ -365,15 +406,15 @@ def test_browser_installer():
     flags = config / "chrome-flags.conf"
     flags.write_text(f"--load-extension={ROOT / 'bridge-extension'},{ROOT / 'bridge-extension' / 'source'},/keep/me\n--other-flag\n")
     env = {**os.environ, "HOME": str(home)}
-    helper = ROOT / "bin/mailbox-bridge-install.js"
+    helper = ROOT / "bin/mailbox-bridge-register.js"
     result = run(["node", str(helper)], env=env)
     check("browser bridge installer exits cleanly", result.returncode == 0, result.stderr)
     data = json.loads(result.stdout)
-    check("installer returns the unpacked Chrome directory", data["extensionPath"] == str(ROOT / "bridge-extension/source"), str(data))
+    check("registration returns the unpacked Chrome directory", data["extensionPath"] == str(ROOT / "bridge-extension/source"), str(data))
     native = list(config.glob("**/NativeMessagingHosts/io.github.avillagran.mailbox.json"))
-    external = list(config.glob(f"**/External Extensions/{EXTENSION_ID}.json"))
     check("browser bridge installs four native manifests", len(native) == 4, str(native))
     check("native origins match unpacked extension key", all(json.loads(p.read_text())["allowed_origins"] == [f"chrome-extension://{EXTENSION_ID}/"] for p in native))
+    external = list(config.glob(f"**/External Extensions/{EXTENSION_ID}.json"))
     check("browser bridge does not claim to install an external CRX", not external, str(external))
     chrome = config / "google-chrome"
     (chrome / "Local State").write_text(json.dumps({"profile": {"last_used": "Default"}}))
@@ -389,13 +430,19 @@ def test_browser_installer():
     status_env = {**env, "PATH": f"{fake_bin}:{os.environ['PATH']}"}
     status = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js")], env=status_env).stdout)
     check("unpacked extension reports active without system registration", status["installed"] and status["upToDate"] and not status["removalReady"], str(status))
+    xdg.write_text("#!/bin/sh\nprintf '%s\\n' firefox.desktop\n")
+    selected_chrome = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js"), "--chrome"], env=status_env).stdout)
+    selected_brave = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js"), "--brave"], env=status_env).stdout)
+    check("explicit Chrome status ignores the desktop default", selected_chrome["browser"] == "google-chrome.desktop" and selected_chrome["upToDate"], str(selected_chrome))
+    check("explicit Brave status ignores the desktop default", "brave" in selected_brave["browser"] and not selected_brave["installed"], str(selected_brave))
+    xdg.write_text("#!/bin/sh\nprintf '%s\\n' google-chrome.desktop\n")
     prefs_file = chrome / "Default/Preferences"
     prefs = json.loads(prefs_file.read_text())
     prefs["extensions"]["settings"][EXTENSION_ID]["path"] = str(ROOT / "bridge-extension.crx")
     prefs_file.write_text(json.dumps(prefs))
     wrong_path = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js")], env=status_env).stdout)
     check("legacy CRX is not reported as the unpacked extension", not wrong_path["upToDate"], str(wrong_path))
-    prefs["extensions"]["settings"][EXTENSION_ID].update({"path": str(ROOT / "bridge-extension/source"), "location": 1, "manifest": {"version": "0.0.3"}})
+    prefs["extensions"]["settings"][EXTENSION_ID].update({"path": str(ROOT / "bridge-extension/source"), "location": 1, "manifest": {"version": "0.0.4"}})
     prefs_file.write_text(json.dumps(prefs))
     wrong_location = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js")], env=status_env).stdout)
     check("cached CRX manifest cannot masquerade as unpacked", not wrong_location["upToDate"], str(wrong_location))
@@ -417,15 +464,113 @@ def test_browser_installer():
     legacy_root = home / "system"
     legacy_file = legacy_root / "opt/google/chrome/extensions" / f"{EXTENSION_ID}.json"
     legacy_file.parent.mkdir(parents=True)
-    legacy_file.write_text(json.dumps({"external_crx": str(ROOT / "bridge-extension.crx"), "external_version": "0.0.3"}))
+    legacy_file.write_text(json.dumps({"external_crx": "/opt/google/chrome/extensions/bridge-extension.crx", "external_version": "0.0.4"}))
     legacy_status = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js")], env={**status_env, "MAILBOX_LEGACY_REGISTRY_ROOT": str(legacy_root)}).stdout)
-    check("legacy system registration blocks false green", legacy_status["legacyRegistration"] and not legacy_status["upToDate"], str(legacy_status))
-    check("browser bridge removes only its unpacked extension flags", str(ROOT / "bridge-extension") not in flags.read_text() and "/keep/me" in flags.read_text())
-    result = run(["node", str(helper), "--uninstall"], env=env)
+    check("legacy system registration blocks false green and is never treated as supported", legacy_status["legacyRegistration"] and not legacy_status["upToDate"] and "systemConfigured" not in legacy_status, str(legacy_status))
+    check("Chrome status reports manual setup only", legacy_status["automatic"] is False and legacy_status["flagsFile"] == "", str(legacy_status))
+    prefs["extensions"]["settings"][EXTENSION_ID] = {"path": str(ROOT / "bridge-extension/source"), "location": 4, "state": 1}
+    prefs_file.write_text(json.dumps(prefs))
+    check("registration leaves unrelated flags files untouched", "/keep/me" in flags.read_text() and str(ROOT / "bridge-extension/source") in flags.read_text())
+    chromium_flags = config / "chromium-flags.conf"
+    chromium_flags.write_text("--disable-gpu\n--load-extension=/keep/chromium\n")
+    result = run(["node", str(helper), "--chromium"], env=env)
+    check("one-click Chromium setup exits cleanly", result.returncode == 0, result.stderr)
+    check("Chromium setup adds the local extension without losing other flags", str(ROOT / 'bridge-extension/source') in chromium_flags.read_text().split('--load-extension=')[1].splitlines()[0].split(',') and "/keep/chromium" in chromium_flags.read_text() and "--disable-gpu" in chromium_flags.read_text(), chromium_flags.read_text())
+    result = run(["node", str(helper), "--chromium"], env=env)
+    check("Chromium setup is idempotent", result.returncode == 0 and chromium_flags.read_text().count(str(ROOT / "bridge-extension/source")) == 1, chromium_flags.read_text())
+    chromium_status = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js"), "--chromium"], env=status_env).stdout)
+    check("status reports Chromium startup configured even when Chrome is default", chromium_status.get("flagsConfigured") is True and chromium_status.get("automatic") is True and "chromium" in chromium_status["browser"], str(chromium_status))
+    brave_flags = config / "brave-flags.conf"
+    brave_flags.write_text("--password-store=gnome-libsecret\n")
+    result = run(["node", str(helper), "--brave"], env=env)
+    check("one-click Brave setup exits cleanly", result.returncode == 0, result.stderr)
+    check("Brave setup adds the local extension to brave-flags.conf only", str(ROOT / "bridge-extension/source") in brave_flags.read_text() and "--password-store=gnome-libsecret" in brave_flags.read_text() and not (config / "brave-origin-flags.conf").exists() and str(ROOT / "bridge-extension/source") in chromium_flags.read_text(), brave_flags.read_text())
+    (apps_dir := home / ".local/share/applications").mkdir(parents=True, exist_ok=True)
+    (apps_dir / "brave-browser.desktop").write_text("[Desktop Entry]\nType=Application\nName=Brave\n")
+    brave_status = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js"), "--brave"], env=status_env).stdout)
+    check("status reports Brave startup configured", brave_status.get("flagsConfigured") is True and brave_status.get("automatic") is True and brave_status["flagsFile"].endswith("brave-flags.conf"), str(brave_status))
+    brave_profile = config / "BraveSoftware/Brave-Browser/Default"
+    brave_profile.mkdir(parents=True)
+    (config / "BraveSoftware/Brave-Browser/Local State").write_text(json.dumps({"profile": {"last_used": "Default"}}))
+    (brave_profile / "Preferences").write_text(json.dumps({"extensions": {"settings": {
+      EXTENSION_ID: {"path": str(ROOT / "bridge-extension/source"), "location": 8}
+    }}}))
+    brave_loaded = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js"), "--brave"], env=status_env).stdout)
+    check("command-line Brave extension reports active", brave_loaded["installed"] and brave_loaded["upToDate"] and brave_loaded["registrationMode"] == "user-flags", str(brave_loaded))
+    chromium_profile = config / "chromium/Default"
+    chromium_profile.mkdir()
+    (config / "chromium/Local State").write_text(json.dumps({"profile": {"last_used": "Default"}}))
+    (chromium_profile / "Preferences").write_text(json.dumps({"extensions": {"settings": {
+      EXTENSION_ID: {"path": str(ROOT / "bridge-extension/source"), "location": 8}
+    }}}))
+    chromium_loaded = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js"), "--chromium"], env=status_env).stdout)
+    check("command-line Chromium extension reports active without a cached manifest or state field", chromium_loaded["installed"] and chromium_loaded["upToDate"] and chromium_loaded["loadedVersion"] == "0.0.5", str(chromium_loaded))
+    (chromium_profile / "Preferences").write_text(json.dumps({"extensions": {"settings": {
+      EXTENSION_ID: {"path": str(ROOT / "bridge-extension/source"), "location": 8, "state": 1}
+    }}}))
+    flags_before = chromium_flags.read_text()
+    chromium_flags.write_text("--disable-gpu\n--load-extension=/keep/chromium\n")
+    stale_command_line = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js"), "--chromium"], env=status_env).stdout)
+    check("command-line extension with state one requires its startup flag", not stale_command_line["upToDate"] and stale_command_line["installed"], str(stale_command_line))
+    chromium_flags.write_text(flags_before)
+    result = run(["node", str(helper), "--remove"], env=env)
+    check("removal drops only Mailbox flags from every flags file", result.returncode == 0 and str(ROOT / "bridge-extension") not in flags.read_text() and "/keep/me" in flags.read_text() and str(ROOT / "bridge-extension/source") not in chromium_flags.read_text() and "/keep/chromium" in chromium_flags.read_text() and str(ROOT / "bridge-extension/source") not in brave_flags.read_text() and "--password-store=gnome-libsecret" in brave_flags.read_text(), result.stderr + chromium_flags.read_text())
+    result = run(["node", str(helper), "--remove"], env=env)
     check("browser bridge uninstaller exits cleanly", result.returncode == 0, result.stderr)
     check("browser bridge uninstaller removes native registrations", not list(config.glob("**/io.github.avillagran.mailbox.json")))
     status = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js")], env=status_env).stdout)
     check("uninstall waits for user to remove extension in browser", status["removalReady"] and not status["upToDate"], str(status))
+
+
+def test_browser_installer_symlink_safety():
+  helper = ROOT / "bin/mailbox-bridge-register.js"
+  native_name = "io.github.avillagran.mailbox.json"
+  cases = [
+    ("native manifest", ".config/google-chrome/NativeMessagingHosts/" + native_name, []),
+    ("browser flags", ".config/chromium-flags.conf", ["--chromium"]),
+    ("removal marker", ".config/omarchy/mailbox-bridge-removing", ["--remove"]),
+    ("browser native host directory", ".config/google-chrome/NativeMessagingHosts", []),
+    ("Brave flags", ".config/brave-flags.conf", ["--brave"]),
+  ]
+  for name, relative, args in cases:
+    with tempfile.TemporaryDirectory() as directory:
+      home = Path(directory)
+      victim = home / "private-data"
+      victim_is_dir = name.endswith("directory")
+      if victim_is_dir:
+        victim.mkdir()
+        (victim / "sentinel").write_text("KEEP MY DATA")
+      else:
+        victim.write_text("KEEP MY DATA")
+      link = home / relative
+      link.parent.mkdir(parents=True)
+      link.symlink_to(victim, target_is_directory=victim_is_dir)
+      result = run(["node", str(helper), *args], env={**os.environ, "HOME": str(home)})
+      check(f"{name} symlink is rejected", result.returncode != 0, result.stdout + result.stderr)
+      actual = (victim / "sentinel").read_text() if victim_is_dir else victim.read_text()
+      check(f"{name} symlink does not alter unrelated file", actual == "KEEP MY DATA", actual)
+  with tempfile.TemporaryDirectory() as directory:
+    home = Path(directory)
+    config = home / ".config"
+    config.mkdir()
+    victim = home / "unrelated-chrome-flags"
+    victim.write_text("--other-flag\n")
+    (config / "chrome-flags.conf").symlink_to(victim)
+    result = run(["node", str(helper), "--chromium"], env={**os.environ, "HOME": str(home)})
+    chromium_flags = config / "chromium-flags.conf"
+    check("unrelated Chrome flags symlink does not block Chromium installation", result.returncode == 0 and chromium_flags.is_file() and str(ROOT / "bridge-extension/source") in chromium_flags.read_text(), result.stderr)
+    check("unrelated Chrome flags symlink target is untouched", victim.read_text() == "--other-flag\n", victim.read_text())
+  with tempfile.TemporaryDirectory() as directory:
+    home = Path(directory)
+    config = home / ".config"
+    native = config / "google-chrome/NativeMessagingHosts"
+    native.mkdir(parents=True)
+    original = native / native_name
+    victim = home / "hardlinked-data"
+    victim.write_text("KEEP MY DATA")
+    os.link(victim, original)
+    result = run(["node", str(helper)], env={**os.environ, "HOME": str(home)})
+    check("existing manifest is replaced without changing hardlinked file", result.returncode == 0 and victim.read_text() == "KEEP MY DATA" and original.read_text() != "KEEP MY DATA", result.stdout + result.stderr)
 
 
 def test_omarchy_tools():
@@ -444,7 +589,143 @@ def test_omarchy_tools():
     skip("QML syntax gate", "qmllint is not installed")
 
 
+def test_guided_browser_setup():
+  helper = ROOT / "bin/mailbox-open-browser-extensions.js"
+  with tempfile.TemporaryDirectory() as directory:
+    home = Path(directory)
+    apps = home / ".local/share/applications"
+    apps.mkdir(parents=True)
+    (apps / "google-chrome.desktop").write_text("[Desktop Entry]\nType=Application\nName=Chrome\n")
+    (apps / "brave-browser.desktop").write_text("[Desktop Entry]\nType=Application\nName=Brave\n")
+    fakebin = home / "bin"
+    fakebin.mkdir()
+    for name, body in {
+      "xdg-settings": '#!/bin/sh\nprintf "%s\\n" firefox.desktop\n',
+      "wl-copy": '#!/bin/sh\n(sleep 0.35; printf "%s\\n" "$1" > "$CLIP_LOG") &\nsleep 2 &\n',
+      "wl-paste": '#!/bin/sh\ntest -f "$CLIP_LOG" || exit 1\nprintf "%s" "$(cat "$CLIP_LOG")"\n',
+      "gio": '#!/bin/sh\nprintf "%s\\n" "$@" > "$GUI_LOG"\nsleep 3\n',
+    }.items():
+      file = fakebin / name
+      file.write_text(body)
+      file.chmod(0o755)
+    gui = home / "gui.log"
+    clip = home / "clip.log"
+    env = {**os.environ, "HOME": str(home), "PATH": str(fakebin) + os.pathsep + os.environ["PATH"], "GUI_LOG": str(gui), "CLIP_LOG": str(clip)}
+    start = time.monotonic()
+    result = run(["node", str(helper), "--chrome"], env=env)
+    elapsed = time.monotonic() - start
+    for _ in range(20):
+      if gui.exists(): break
+      time.sleep(0.05)
+    check("guided Chrome setup ignores a different default browser", result.returncode == 0 and "google-chrome.desktop" in gui.read_text() if gui.exists() else False, result.stderr)
+    check("guided setup does not wait for the browser to quit", result.returncode == 0 and elapsed < 3, f"exit={result.returncode} elapsed={elapsed:.2f} {result.stderr}")
+    check("guided setup does not wait on clipboard owner inherited pipes", elapsed < 1.2, f"clipboard blocked setup for {elapsed:.2f}s: {result.stderr}")
+    check("guided setup opens the browser without a user command", gui.exists() and "about:blank" in gui.read_text(), result.stderr)
+    check("guided setup copies the extension directory", clip.exists() and str(ROOT / "bridge-extension/source") in clip.read_text(), result.stderr)
+    gui.unlink()
+    result = run(["node", str(helper), "--brave"], env=env)
+    for _ in range(20):
+      if gui.exists(): break
+      time.sleep(0.05)
+    check("guided Brave setup selects Brave regardless of default browser", result.returncode == 0 and gui.exists() and "brave-browser.desktop" in gui.read_text(), result.stderr)
+
+
+def test_refresh_requires_installed_extension():
+  helper = ROOT / "bin/mailbox-force-refresh.js"
+  with tempfile.TemporaryDirectory() as directory:
+    home = Path(directory)
+    fakebin = home / "bin"
+    fakebin.mkdir()
+    xdg = fakebin / "xdg-settings"
+    xdg.write_text('#!/bin/sh\nprintf "%s\\n" google-chrome.desktop\n')
+    xdg.chmod(0o755)
+    gui = fakebin / "gio"
+    gui.write_text('#!/bin/sh\nprintf "%s\\n" "$@" >> "$GUI_LOG"\n')
+    gui.chmod(0o755)
+    apps = home / ".local/share/applications"
+    apps.mkdir(parents=True)
+    (apps / "google-chrome.desktop").write_text("[Desktop Entry]\nType=Application\nName=Chrome\n")
+    log = home / "gui.log"
+    env = {**os.environ, "HOME": str(home), "PATH": str(fakebin) + os.pathsep + os.environ["PATH"], "GUI_LOG": str(log)}
+    result = run(["node", str(helper)], env=env)
+    check("refresh refuses a browser without an installed bridge", result.returncode != 0 and not log.exists() and "Load unpacked" in result.stderr, result.stderr)
+    brave = home / ".config/BraveSoftware/Brave-Browser"
+    (brave / "Default").mkdir(parents=True)
+    (brave / "Local State").write_text(json.dumps({"profile": {"last_used": "Default"}}))
+    (brave / "Default/Preferences").write_text(json.dumps({"extensions": {"settings": {
+      EXTENSION_ID: {"path": str(ROOT / "bridge-extension/source"), "location": 4, "state": 1}
+    }}}))
+    native = brave / "NativeMessagingHosts/io.github.avillagran.mailbox.json"
+    native.parent.mkdir()
+    native.write_text(json.dumps({"path": str(HOST), "allowed_origins": [f"chrome-extension://{EXTENSION_ID}/"]}))
+    (apps / "brave-browser.desktop").write_text("[Desktop Entry]\nType=Application\nName=Brave\n")
+    result = run(["node", str(helper), "--brave"], env=env)
+    for _ in range(20):
+      if log.exists(): break
+      time.sleep(0.05)
+    check("refresh targets installed Brave despite Chrome default", result.returncode == 0 and log.exists() and "brave-browser.desktop" in log.read_text(), f"exit={result.returncode} log={log.read_text() if log.exists() else 'missing'} stderr={result.stderr}")
+    (apps / "brave-browser.desktop").unlink()
+    (apps / "brave.desktop").write_text("[Desktop Entry]\nType=Application\nName=Brave alternate\n")
+    result = run(["node", str(helper), "--brave"], env=env)
+    for _ in range(40):
+      if log.exists() and "brave.desktop" in log.read_text(): break
+      time.sleep(0.05)
+    check("refresh uses installed Brave launcher alias", result.returncode == 0 and log.exists() and "brave.desktop" in log.read_text(), f"exit={result.returncode} stderr={result.stderr}")
+
+
+def test_bounded_inputs():
+  bin_sources = {path.name: path.read_text() for path in (ROOT / "bin").glob("*.js")}
+  check("every bin script reads files through the bounded reader", not any("readFileSync" in source for source in bin_sources.values()), ", ".join(name for name, source in bin_sources.items() if "readFileSync" in source))
+  host_source = bin_sources["mailbox-bridge-host.js"]
+  check("native host caps frames, accounts, rows and total bodies", all(token in host_source for token in ("MAX_FRAME_BYTES", "MAX_ACCOUNTS", "MAX_SNAPSHOT_ROWS", "MAX_THREAD_PARTS", "MAX_TOTAL_BODY_BYTES")))
+  check("notification history is read as a bounded recent slice", "MAX_NOTIFICATION_FILES" in bin_sources["mailbox.js"] and "opendirSync" in bin_sources["mailbox.js"])
+  check("panel validates Gmail slot indexes before building URLs", "function gmailIndex(account)" in (ROOT / "Panel.qml").read_text())
+
+  # An oversized frame header is rejected without waiting for or buffering the body.
+  with tempfile.TemporaryDirectory() as directory:
+    result = subprocess.run(["node", str(HOST)], env={**os.environ, "HOME": directory}, input=struct.pack("<I", 0xFFFFFFF0) + b"{", capture_output=True, timeout=10)
+    length = struct.unpack("<I", result.stdout[:4])[0] if len(result.stdout) >= 4 else 0
+    reply = json.loads(result.stdout[4:4 + length]) if length else {}
+    check("native host refuses oversized frames", result.returncode == 0 and reply.get("ok") is False and "too large" in reply.get("error", ""), str(reply))
+
+  reader = ROOT / "bin/mailbox-bounded-read.js"
+  with tempfile.TemporaryDirectory() as directory:
+    base = Path(directory)
+    small = base / "small.json"
+    small.write_text('{"ok": true}')
+    big = base / "big.json"
+    big.write_text(" " * 2048)
+    link = base / "link.json"
+    link.symlink_to(small)
+    script = (
+      "const r = require(process.argv[1]);"
+      "const out = {};"
+      "for (const [name, file, max] of [['small', process.argv[2], 1024], ['big', process.argv[3], 1024], ['link', process.argv[4], 1024]]) {"
+      "  try { out[name] = r.readJson(file, max); } catch (error) { out[name] = 'error:' + (error.code || error.message); }"
+      "}"
+      "console.log(JSON.stringify(out));"
+    )
+    result = run(["node", "-e", script, str(reader), str(small), str(big), str(link)])
+    out = json.loads(result.stdout or "{}")
+    check("bounded reader returns small regular files", out.get("small") == {"ok": True}, result.stdout + result.stderr)
+    check("bounded reader refuses files over the limit", str(out.get("big", "")).startswith("error:") and "exceeds" in str(out.get("big")), str(out.get("big")))
+    check("bounded reader refuses a symlinked file", out.get("link") == "error:ELOOP", str(out.get("link")))
+
+  # Snapshot fields are clipped and non-provider row URLs are dropped.
+  with tempfile.TemporaryDirectory() as directory:
+    home = Path(directory)
+    (home / ".config/omarchy").mkdir(parents=True)
+    (home / ".config/omarchy/mailbox.json").write_text(json.dumps({"accounts": {"real@example.com": {}}}))
+    row = {"from": "A" * 5000, "subject": "S" * 5000, "snippet": "x", "date": "today", "threadId": "abc", "url": "https://evil.example/phish", "unread": True}
+    reply = native_message(home, {"type": "mailbox-snapshot", "account": "real@example.com", "accountVerified": True, "index": "0", "unread": 1, "emails": [row] * 3})
+    stored = json.loads((home / ".cache/omarchy/mailbox/bridge.json").read_text())["accounts"]["real@example.com"]["emails"][0]
+    check("native host clips snapshot fields", reply.get("ok") is True and len(stored["from"]) == 512 and len(stored["subject"]) == 1024, str(reply))
+    check("native host drops non-provider row URLs", stored["url"] == "", stored["url"])
+
+
 def main():
+  test_guided_browser_setup()
+  test_refresh_requires_installed_extension()
   test_static_files()
   test_i18n()
   test_versions()
@@ -453,9 +734,11 @@ def main():
   test_panel_badge_propagation()
   test_notification_reconciliation()
   test_native_host()
+  test_bounded_inputs()
   test_settings()
   test_keybind()
   test_browser_installer()
+  test_browser_installer_symlink_safety()
   test_omarchy_tools()
   print(f"SUMMARY {passed} PASS / 0 FAIL / {skipped} SKIP")
 

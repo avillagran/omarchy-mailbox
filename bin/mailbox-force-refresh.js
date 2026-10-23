@@ -6,7 +6,11 @@ const os = require('os');
 const path = require('path');
 const { execFileSync, spawn } = require('child_process');
 const url = 'chrome-extension://kjmlhpckodkmfcjmelnkknkaeiognoed/refresh.html';
-const desktop = execFileSync('xdg-settings', ['get', 'default-web-browser'], { encoding: 'utf8' }).trim();
+const selectedBrowser = ['--chromium', '--brave', '--chrome'].find(flag => process.argv.includes(flag));
+const status = JSON.parse(execFileSync(process.execPath,
+  [path.join(__dirname, 'mailbox-bridge-status.js'), ...(selectedBrowser ? [selectedBrowser] : [])], { encoding: 'utf8' }));
+if (!status.upToDate) throw new Error('Mailbox Local Bridge is not configured in this browser. Install it in Chromium or Brave from Mailbox preferences, or use Set up Chrome, then Developer mode → Load unpacked.');
+const desktop = status.browser;
 const chromiumFamily = /(chrome|chromium|brave|vivaldi|microsoft-edge)/i;
 if (!chromiumFamily.test(desktop)) throw new Error(`The default browser does not support the installed Chromium extension: ${desktop}`);
 const roots = [path.join(os.homedir(), '.local', 'share', 'applications'), '/usr/share/applications'];

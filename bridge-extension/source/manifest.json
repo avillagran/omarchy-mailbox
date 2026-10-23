@@ -1,8 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Mailbox Local Bridge",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "description": "Shares Gmail and HEY previews plus optional local plain-text conversation cache with Omarchy Mailbox. No passwords, cookies or OAuth tokens leave this computer.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuCZ97kaAdTlddFcyE1SXI7fqS+D7Y6gNOMyGPancwJ8dXjIs2ETAADIDiY6yi7xPBLTPm9wWq5vws+Z7FPZqalWy1/gSQ0uruLntjDPdXrRgCRSb5LaWCg9MslCeoFtWLXxmEuBy+DXd4qFZQSB+QnWLrcdR3O9Nr9uj7jXuE7upxhEaKOqYUsbcfVDs5VrwOMCC64GWKSXMn1aw8v+PHbgYFyDcAFqtsAfKE4ONdCqibHGoXwBJAw5aLwQJfNh+GGQ9+CsiDW2SsQvHc7WMZX20vCGKyyBlqY9VOITdAQT7EM/gaasK+hpW+YSrU9KeV0Ps8lielj5/GJcFIBFJtwIDAQAB",
   "permissions": ["nativeMessaging", "tabs", "scripting", "alarms"],
   "host_permissions": ["https://mail.google.com/*", "https://app.hey.com/*"],
@@ -12,5 +18,8 @@
     "run_at": "document_idle"
   }],
   "background": {"service_worker": "background.js"},
-  "action": {"default_title": "Mailbox Local Bridge"}
+  "action": {"default_title": "Mailbox Local Bridge", "default_icon": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png"
+  }}
 }

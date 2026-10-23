@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 const fs = require('fs');
+const crypto = require('crypto');
 const os = require('os');
 const path = require('path');
+const { readText, readJson, LIMITS } = require(path.join(__dirname, 'mailbox-bounded-read.js'));
 const { spawnSync } = require('child_process');
 
 const settingsPath = path.join(os.homedir(), '.config', 'omarchy', 'mailbox.json');
@@ -11,12 +13,30 @@ const mainPath = path.join(hyprDir, 'hyprland.lua');
 const requireLine = 'require("hypr.mailbox")';
 const legacyRequireLine = 'require("mailbox")';
 
+// Replace a user-owned file atomically: random temp name, O_EXCL|O_NOFOLLOW, no symlinked target.
+function atomicWrite(file, text, mode = 0o600) {
+  let stat = null;
+  try { stat = fs.lstatSync(file); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  if (stat && (!stat.isFile() || stat.uid !== process.getuid())) throw new Error(`Unsafe file: ${file}`);
+  const temp = `${file}.${process.pid}.${crypto.randomBytes(12).toString('hex')}.tmp`;
+  let fd;
+  try {
+    fd = fs.openSync(temp, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_NOFOLLOW, mode);
+    fs.writeFileSync(fd, text);
+    fs.closeSync(fd);
+    fd = undefined;
+    fs.renameSync(temp, file);
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+    fs.rmSync(temp, { force: true });
+  }
+}
 function updateMain(includeBinding) {
   if (!fs.existsSync(mainPath)) {
     if (includeBinding) throw new Error(`Missing Hyprland configuration: ${mainPath}`);
     return;
   }
-  const original = fs.readFileSync(mainPath, 'utf8');
+  const original = readText(mainPath, LIMITS.config);
   const lines = original.split(/\r?\n/).filter(line => {
     const trimmed = line.trim();
     return trimmed !== requireLine && trimmed !== legacyRequireLine;
@@ -24,10 +44,7 @@ function updateMain(includeBinding) {
   let next = lines.join('\n').replace(/\s*$/, '\n');
   if (includeBinding) next += requireLine + '\n';
   if (next === original) return;
-  const temporary = `${mainPath}.${process.pid}.tmp`;
-  const mode = fs.statSync(mainPath).mode & 0o777;
-  fs.writeFileSync(temporary, next, { mode });
-  fs.renameSync(temporary, mainPath);
+  atomicWrite(mainPath, next, fs.statSync(mainPath).mode & 0o777);
 }
 
 function reloadHyprland() {
@@ -44,7 +61,7 @@ if (process.argv.includes('--uninstall')) {
 }
 
 let settings = {};
-try { settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')); } catch (_) {}
+try { settings = readJson(settingsPath, LIMITS.settings); } catch (_) {}
 const requested = String(process.argv[2] || settings.shortcutKey || 'Q').trim().toUpperCase();
 if (!/^[A-Z]$/.test(requested)) throw new Error('Shortcut must be one letter from A to Z.');
 
@@ -55,9 +72,7 @@ const lua = [
   `o.bind("SUPER + SHIFT + ${requested}", "Mailbox", "omarchy-shell -q shell toggle io.github.avillagran.omarchy-mailbox")`,
   ''
 ].join('\n');
-const temporary = `${bindingPath}.${process.pid}.tmp`;
-fs.writeFileSync(temporary, lua, { mode: 0o600 });
-fs.renameSync(temporary, bindingPath);
+atomicWrite(bindingPath, lua);
 updateMain(true);
 reloadHyprland();
 console.log(JSON.stringify({ shortcutKey: requested, binding: `SUPER + SHIFT + ${requested}` }));

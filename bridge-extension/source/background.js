@@ -24,12 +24,12 @@ function refreshTab(tabId) {
 }
 function requestSnapshots() {
   chrome.tabs.query({ url: SUPPORTED_URLS }, tabs => {
-    sendNative({ type: "bridge-diagnostics", tabs: tabs.map(tab => ({ id: tab.id, url: tab.url || "", title: tab.title || "" })), capturedAt: Date.now() });
+    sendNative({ type: "bridge-diagnostics", bridgeVersion: chrome.runtime.getManifest().version, tabs: tabs.map(tab => ({ id: tab.id, url: tab.url || "", title: tab.title || "" })), capturedAt: Date.now() });
     for (const tab of tabs) refreshTab(tab.id);
   });
 }
 function startupProbe() {
-  sendNative({ type: "bridge-health", capturedAt: Date.now() });
+  sendNative({ type: "bridge-health", bridgeVersion: chrome.runtime.getManifest().version, capturedAt: Date.now() });
   chrome.alarms.create("mailbox-refresh", { periodInMinutes: 1 });
   requestSnapshots();
 }

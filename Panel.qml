@@ -33,14 +33,20 @@ Panel {
   }
   property string binPath: Qt.resolvedUrl("bin/mailbox.js").toString().replace("file://", "")
   property string settingsBin: Qt.resolvedUrl("bin/mailbox-settings.js").toString().replace("file://", "")
-  property string bridgeInstallBin: Qt.resolvedUrl("bin/mailbox-bridge-install.js").toString().replace("file://", "")
+  property string bridgeRegisterBin: Qt.resolvedUrl("bin/mailbox-bridge-register.js").toString().replace("file://", "")
   property string bridgeExtensionPath: Qt.resolvedUrl("bridge-extension/source").toString().replace("file://", "")
   property string forceRefreshBin: Qt.resolvedUrl("bin/mailbox-force-refresh.js").toString().replace("file://", "")
+  property string browserExtensionSetupBin: Qt.resolvedUrl("bin/mailbox-open-browser-extensions.js").toString().replace("file://", "")
   property string bridgeInstallState: ""
   property string bridgeStatusText: ""
   property bool bridgeUpToDate: false
   property bool bridgeInstalled: false
   property bool bridgeLegacyRegistration: false
+  property bool bridgeBrowserAutomatic: false
+  property string bridgeBrowserTarget: ""
+  property bool bridgeBrowserTargetChosen: false
+  property string pendingBrowserTargetSave: ""
+  property bool bridgeFlagsConfigured: false
   property bool bridgeStatusKnown: false
   property string bridgeStatusBin: Qt.resolvedUrl("bin/mailbox-bridge-status.js").toString().replace("file://", "")
   property string keybindBin: Qt.resolvedUrl("bin/mailbox-keybind.js").toString().replace("file://", "")
@@ -129,9 +135,36 @@ Panel {
 
   Process {
     id: bridgeInstallProc
-    command: ["node", root.bridgeInstallBin]
+    command: ["node", root.bridgeRegisterBin]
     running: false
-    onExited: function(exitCode) { if (exitCode === 0) root.bridgeInstallState = root.tf("In chrome://extensions, enable Developer mode, choose Load unpacked, and select %1. Reload the extension here after an update.", [root.bridgeExtensionPath]); bridgeStatusRetry.restart() }
+    onExited: function(exitCode) {
+      if (exitCode === 0) root.openBrowserExtensionSetup()
+      bridgeStatusRetry.restart()
+    }
+    stdout: StdioCollector { waitForEnd: true }
+    stderr: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: { if (text.trim().length) root.bridgeInstallState = root.tf("installFailed", [text.trim()]) }
+    }
+  }
+  Process {
+    id: browserExtensionSetupProc
+    command: ["node", root.browserExtensionSetupBin, "--chrome"]
+    running: false
+    onExited: function(exitCode) {
+      if (exitCode === 0) root.bridgeInstallState = root.t("Extension folder copied. In your browser menu, open Extensions > Manage extensions, enable Developer mode, choose Load unpacked, and paste the copied path.")
+    }
+    stdout: StdioCollector { waitForEnd: true }
+    stderr: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: { if (text.trim().length) root.bridgeInstallState = root.tf("installFailed", [text.trim()]) }
+    }
+  }
+  Process {
+    id: flagsBridgeInstallProc
+    command: ["node", root.bridgeRegisterBin, root.bridgeBrowserTarget === "brave" ? "--brave" : "--chromium"]
+    running: false
+    onExited: function(exitCode) { if (exitCode === 0) root.bridgeInstallState = root.tf("Quit and reopen %1 to activate Mailbox Local Bridge.", [root.browserDisplayName(root.bridgeBrowserTarget)]); bridgeStatusRetry.restart() }
     stdout: StdioCollector { waitForEnd: true }
     stderr: StdioCollector {
       waitForEnd: true
@@ -142,9 +175,45 @@ Panel {
 
   Process {
     id: bridgeStatusProc
-    command: ["node", root.bridgeStatusBin]
+    command: root.bridgeBrowserTarget === "chromium" ? ["node", root.bridgeStatusBin, "--chromium"]
+      : root.bridgeBrowserTarget === "brave" ? ["node", root.bridgeStatusBin, "--brave"]
+      : root.bridgeBrowserTarget === "chrome" ? ["node", root.bridgeStatusBin, "--chrome"]
+      : ["node", root.bridgeStatusBin]
     running: false
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: function() { try { var status = JSON.parse(text); root.bridgeInstalled = status.installed === true; root.bridgeLegacyRegistration = status.legacyRegistration === true; root.bridgeUpToDate = status.upToDate === true; root.bridgeStatusKnown = true; root.bridgeStatusText = status.legacyRegistration ? root.t("A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.") : (status.removalReady ? root.t("Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling.") : (root.bridgeUpToDate ? root.tf("pluginUpdated", [status.loadedVersion]) : (status.installed ? root.t("Enable or reload Mailbox Local Bridge in chrome://extensions.") : root.t("extensionNotInstalled")))) } catch (_) { root.bridgeInstalled = false; root.bridgeStatusKnown = true; root.bridgeStatusText = root.t("extensionCheckFailed") } } }
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: function() { try {
+      var status = JSON.parse(text)
+      // Ignore a status request launched for a browser the user has since changed.
+      if (root.bridgeBrowserTarget && (root.bridgeBrowserTarget === "chromium" ? !/chromium/i.test(status.browser || "")
+          : root.bridgeBrowserTarget === "brave" ? !/brave/i.test(status.browser || "")
+          : !/chrome/i.test(status.browser || ""))) {
+        root.bridgeStatusKnown = false
+        bridgeStatusRetry.restart()
+        return
+      }
+      // The desktop default can be Chrome while Mailbox is installed in Chromium.
+      // Recheck Chromium instead of reporting its working installation as absent.
+      if (!root.bridgeBrowserTarget && !root.bridgeBrowserAutomatic && status.flagsConfigured && !status.installed) {
+        if (!status.legacyRegistration) {
+          root.bridgeBrowserTarget = /brave/i.test(status.browser || "") ? "brave" : "chromium"
+          root.bridgeFlagsConfigured = true
+          root.bridgeStatusKnown = false
+          root.bridgeStatusText = root.t("checkingExtension")
+          bridgeStatusRetry.restart()
+          return
+        }
+      }
+      root.bridgeInstalled = status.installed === true
+      root.bridgeLegacyRegistration = status.legacyRegistration === true
+      root.bridgeBrowserAutomatic = status.automatic === true
+      root.bridgeFlagsConfigured = status.flagsConfigured === true
+      root.bridgeUpToDate = status.upToDate === true
+      root.bridgeStatusKnown = true
+      root.bridgeStatusText = status.legacyRegistration ? root.t("A legacy system browser registration remains. Ask an administrator to remove it before loading the unpacked extension.")
+        : status.removalReady ? (root.bridgeBrowserAutomatic ? root.tf("Quit and reopen %1 to complete removal.", [root.browserDisplayName(root.bridgeBrowserTarget)]) : root.t("Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling."))
+        : root.bridgeUpToDate ? root.tf("Extension %1 is configured; confirm it in the browser.", [status.loadedVersion])
+        : root.bridgeBrowserAutomatic && root.bridgeFlagsConfigured ? root.tf("Quit and reopen %1 to activate Mailbox Local Bridge.", [root.browserDisplayName(root.bridgeBrowserTarget)])
+        : status.installed ? root.t("Enable or reload Mailbox Local Bridge in chrome://extensions.") : root.t("extensionNotInstalled")
+    } catch (_) { root.bridgeInstalled = false; root.bridgeFlagsConfigured = false; root.bridgeLegacyRegistration = false; root.bridgeUpToDate = false; root.bridgeStatusKnown = true; root.bridgeStatusText = root.t("extensionCheckFailed") } } }
   }
 
   Timer { id: bridgeStatusRetry; interval: 3500; repeat: false; onTriggered: { if (!bridgeStatusProc.running) bridgeStatusProc.running = true } }
@@ -159,17 +228,44 @@ Panel {
 
   Process {
     id: bridgeUninstallProc
-    command: ["node", root.bridgeInstallBin, "--uninstall"]
+    command: ["node", root.bridgeRegisterBin, "--remove"]
     running: false
-    onExited: function(exitCode) { if (exitCode === 0) root.bridgeInstallState = root.t("Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling."); bridgeStatusRetry.restart() }
+    onExited: function(exitCode) { if (exitCode === 0) root.bridgeInstallState = root.bridgeBrowserAutomatic ? root.tf("Quit and reopen %1 to complete removal.", [root.browserDisplayName(root.bridgeBrowserTarget)]) : root.t("Remove Mailbox Local Bridge in chrome://extensions to finish uninstalling."); bridgeStatusRetry.restart() }
     stderr: StdioCollector { waitForEnd: true; onStreamFinished: function() { if (text.trim().length) root.bridgeInstallState = root.tf("uninstallFailed", [text.trim()]) } }
   }
 
   Process {
+    id: browserTargetSaveProc
+    command: ["node", root.settingsBin, "set-browser", root.bridgeBrowserTarget]
+    running: false
+    onExited: function(exitCode) {
+      if (exitCode !== 0) console.warn("Mailbox browser selection could not be saved")
+      if (root.pendingBrowserTargetSave) {
+        var pending = root.pendingBrowserTargetSave
+        root.pendingBrowserTargetSave = ""
+        root.saveBrowserTarget(pending)
+      }
+    }
+    stdout: StdioCollector { waitForEnd: true }
+  }
+  Process {
     id: shortcutLoadProc
     command: ["node", root.settingsBin, "get"]
     running: false
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: function() { try { var value = JSON.parse(text); root.shortcutKey = value.shortcutKey || "Q"; root.maxMessagesPerAccount = value.maxMessagesPerAccount || 50; root.downloadBodies = value.downloadBodies !== false } catch (_) {} } }
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: function() { try {
+      var value = JSON.parse(text)
+      root.shortcutKey = value.shortcutKey || "Q"
+      root.maxMessagesPerAccount = value.maxMessagesPerAccount || 50
+      root.downloadBodies = value.downloadBodies !== false
+      if (!root.bridgeBrowserTargetChosen) {
+        var selected = value.bridgeBrowserTarget || ""
+        if (root.bridgeBrowserTarget !== selected) {
+          root.bridgeBrowserTarget = selected
+          root.bridgeBrowserAutomatic = selected === "chromium" || selected === "brave"
+          bridgeStatusRetry.restart()
+        }
+      }
+    } catch (_) {} } }
   }
 
   Process {
@@ -212,7 +308,17 @@ Panel {
 
   function refresh(forceExtensionCapture) {
     root.syncing = true
-    if (forceExtensionCapture === true && root.settingsMode) Quickshell.execDetached(["node", root.forceRefreshBin])
+    if (forceExtensionCapture === true && root.settingsMode) {
+      if (root.bridgeUpToDate) {
+        Quickshell.execDetached(root.bridgeBrowserTarget === "chromium" ? ["node", root.forceRefreshBin, "--chromium"]
+          : root.bridgeBrowserTarget === "brave" ? ["node", root.forceRefreshBin, "--brave"]
+          : root.bridgeBrowserTarget === "chrome" ? ["node", root.forceRefreshBin, "--chrome"]
+          : ["node", root.forceRefreshBin])
+      } else {
+        root.bridgeInstallState = root.t("extensionNotInstalled")
+        root.checkBridgeStatus()
+      }
+    }
     if (root.hostWidget) root.hostWidget.refresh(true)
   }
   function openAccountInbox(account) {
@@ -224,7 +330,7 @@ Panel {
   function openAccountNotificationSettings(account) {
     if (!account) return
     var target = account.provider === "gmail"
-      ? "https://mail.google.com/mail/u/" + (account.index || "0") + "/#settings/general"
+      ? "https://mail.google.com/mail/u/" + root.gmailIndex(account) + "/#settings/general"
       : (account.inboxUrl || "https://app.hey.com/")
     Quickshell.execDetached(["xdg-open", target])
   }
@@ -235,8 +341,12 @@ Panel {
       return
     }
     if (account && account.inboxUrl) { Quickshell.execDetached(["xdg-open", account.inboxUrl]); return }
-    var index = account ? account.index : 0
-    Quickshell.execDetached(["xdg-open", "https://mail.google.com/mail/u/" + index + "/#inbox"])
+    Quickshell.execDetached(["xdg-open", "https://mail.google.com/mail/u/" + root.gmailIndex(account) + "/#inbox"])
+  }
+  // Gmail account slots are small integers; anything else falls back to slot 0.
+  function gmailIndex(account) {
+    var index = String(account && account.index !== null && account.index !== undefined ? account.index : "0")
+    return /^[0-9]{1,3}$/.test(index) ? index : "0"
   }
   function gmailMessageUrl(email) {
     var direct = String(email && email.url || "")
@@ -248,9 +358,8 @@ Panel {
       var heyThread = String(email.threadId || "").replace(/[^0-9]/g, "")
       return heyThread ? "https://app.hey.com/topics/" + heyThread : ""
     }
-    var index = account && account.index !== null && account.index !== undefined ? account.index : 0
-    var thread = String(email.threadId || "").replace(/^#/, "")
-    return thread ? "https://mail.google.com/mail/u/" + index + "/#inbox/" + thread : ""
+    var thread = String(email.threadId || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 128)
+    return thread ? "https://mail.google.com/mail/u/" + root.gmailIndex(account) + "/#inbox/" + thread : ""
   }
   function openEmail(email) {
     var sourceAccount = root.accountFor(email.account)
@@ -270,10 +379,44 @@ Panel {
     var account = root.accountFor(root.selectedAccount)
     root.openAccountInbox(account)
   }
-  function installBridge() { if (!bridgeInstallProc.running) { root.bridgeInstallState = root.t("installingBridge"); bridgeInstallProc.running = true } }
-  function uninstallBridge() { if (!bridgeUninstallProc.running) { root.bridgeInstallState = root.t("removingBridge"); bridgeUninstallProc.running = true } }
+  function saveBrowserTarget(browser) {
+    if (browserTargetSaveProc.running) { root.pendingBrowserTargetSave = browser; return }
+    browserTargetSaveProc.command = ["node", root.settingsBin, "set-browser", browser]
+    browserTargetSaveProc.running = true
+  }
+  function browserDisplayName(browser) { return browser === "brave" ? "Brave" : browser === "chromium" ? "Chromium" : "Chrome" }
+  function installBridge(browser) {
+    if (browser !== "chrome") return
+    if (bridgeInstallProc.running || flagsBridgeInstallProc.running || browserExtensionSetupProc.running || bridgeUninstallProc.running) return
+    root.bridgeBrowserTarget = browser
+    root.bridgeBrowserTargetChosen = true
+    root.saveBrowserTarget(browser)
+    root.bridgeBrowserAutomatic = false
+    root.bridgeUpToDate = false
+    root.bridgeStatusKnown = false
+    root.bridgeInstallState = root.t("installingBridge")
+    bridgeInstallProc.running = true
+  }
+  function openBrowserExtensionSetup() { if (!browserExtensionSetupProc.running) browserExtensionSetupProc.running = true }
+  function installFlagsBridge(browser) {
+    if (browser !== "chromium" && browser !== "brave") return
+    if (bridgeInstallProc.running || flagsBridgeInstallProc.running || browserExtensionSetupProc.running || bridgeUninstallProc.running) return
+    root.bridgeBrowserTarget = browser
+    root.bridgeBrowserTargetChosen = true
+    root.saveBrowserTarget(browser)
+    root.bridgeBrowserAutomatic = true
+    root.bridgeUpToDate = false
+    root.bridgeStatusKnown = false
+    root.bridgeInstallState = root.t("installingBridge")
+    flagsBridgeInstallProc.running = true
+  }
+  function uninstallBridge() {
+    if (bridgeInstallProc.running || flagsBridgeInstallProc.running || browserExtensionSetupProc.running || bridgeUninstallProc.running) return
+    root.bridgeInstallState = root.t("removingBridge")
+    bridgeUninstallProc.running = true
+  }
 
-  function checkBridgeStatus() { if (!bridgeStatusProc.running) { root.bridgeStatusKnown = false; root.bridgeStatusText = root.t("checkingExtension"); bridgeStatusProc.running = true } }
+  function checkBridgeStatus() { if (!bridgeStatusProc.running) { root.bridgeUpToDate = false; root.bridgeStatusKnown = false; root.bridgeStatusText = root.t("checkingExtension"); bridgeStatusProc.running = true } }
   function showSettings() { root.settingsMode = true; root.checkBridgeStatus(); if (!shortcutLoadProc.running) shortcutLoadProc.running = true; if (!root.opened) root.open() }
   function showInbox() { root.settingsMode = false; root.selectedEmailIndex = Math.max(0, Math.min(root.selectedEmailIndex, Math.max(0, root.filteredEmails().length - 1))); Qt.callLater(function() { keyCatcher.forceActiveFocus(); root.ensureSelectedEmailVisible() }) }
   function cycleAccount(direction) {
@@ -390,9 +533,14 @@ Panel {
         anchors.right: parent.right
         spacing: Style.space(8)
         Row {
+          id: headerRow
           width: parent.width
           spacing: Style.space(8)
+          // Preferences also open from the bar icon's right click, which is easy
+          // to miss. Hovering the header reveals a labeled shortcut instead.
+          HoverHandler { id: headerHover }
           Text {
+            textFormat: Text.PlainText
             text: "󰊫"
             color: Color.accent
             font.family: "monospace"
@@ -400,21 +548,31 @@ Panel {
             anchors.verticalCenter: parent.verticalCenter
           }
           Text {
+            textFormat: Text.PlainText
+            id: headerTitle
             text: root.selectedAccount === "__all__" ? root.tf("unreadAll", [root.selectedUnread()]) : root.tf("unreadInbox", [root.selectedUnread()])
             color: Color.popups.text
             font.family: Style.font.family
             font.pixelSize: Style.font.subtitle
             font.bold: true
+            elide: Text.ElideRight
+            // Long localized titles shrink instead of pushing the buttons past
+            // the panel edge. The trailing controls keep their natural width.
+            width: Math.min(implicitWidth, Math.max(0, headerRow.width - x - markReadButton.width - refreshButton.width - preferencesReveal.width - 4 * headerRow.spacing))
             anchors.verticalCenter: parent.verticalCenter
           }
           Button {
-            text: root.t("markAsRead")
+            id: markReadButton
+            iconText: "󰇰"
+            tooltipText: root.t("markAsRead")
             bordered: false
             onClicked: { Quickshell.execDetached(["node", root.settingsBin, "mark-local-read"]); root.emails = []; root.accounts = root.accounts.map(function(account) { return Object.assign({}, account, { unread: 0 }) }); root.totalUnread = 0 }
             anchors.verticalCenter: parent.verticalCenter
           }
           Item {
-            width: Math.max(0, parent.width - x - Style.space(170))
+            // Leave exactly the room the trailing buttons need so they never
+            // overflow the panel, even while the Preferences label animates.
+            width: Math.max(0, parent.width - x - refreshButton.width - preferencesReveal.width - 2 * headerRow.spacing)
             height: Style.space(28)
             Row {
               id: headerSyncStatus
@@ -425,6 +583,7 @@ Panel {
               visible: opacity > 0
               Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
               Text {
+                textFormat: Text.PlainText
                 text: "󰑐"
                 color: Color.accent
                 font.family: Style.font.family
@@ -432,6 +591,7 @@ Panel {
                 RotationAnimator on rotation { running: root.syncing; from: 0; to: 360; duration: 850; loops: Animation.Infinite }
               }
               Text {
+                textFormat: Text.PlainText
                 text: root.t("syncingTabs")
                 color: Color.muted
                 font.family: Style.font.family
@@ -440,19 +600,32 @@ Panel {
             }
           }
           Button {
+            id: refreshButton
             iconText: "󰑐"
             bordered: false
             onClicked: root.refresh(root.settingsMode)
             anchors.verticalCenter: parent.verticalCenter
           }
-          Button {
-            iconText: root.settingsMode ? "󰊫" : ""
-            bordered: false
-            onClicked: {
-              if (root.settingsMode) root.showInbox()
-              else root.showSettings()
-            }
+          // The icon stays put at the right edge; hovering the header slides the
+          // label out to its left so the button reads as a real Preferences entry.
+          Item {
+            id: preferencesReveal
             anchors.verticalCenter: parent.verticalCenter
+            height: preferencesButton.implicitHeight
+            width: preferencesButton.implicitWidth
+            clip: true
+            Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+            Button {
+              id: preferencesButton
+              anchors.right: parent.right
+              iconText: root.settingsMode ? "󰊫" : ""
+              text: headerHover.hovered || hot ? (root.settingsMode ? root.t("openInbox") : root.t("Preferences")) : ""
+              bordered: text !== ""
+              onClicked: {
+                if (root.settingsMode) root.showInbox()
+                else root.showSettings()
+              }
+            }
           }
         }
         PanelSeparator { foreground: Color.popups.text }
@@ -477,7 +650,7 @@ Panel {
                 color: root.selectedAccount === account.email ? Qt.rgba(root.badgeColor(account.color).r, root.badgeColor(account.color).g, root.badgeColor(account.color).b, 0.28) : Qt.rgba(root.badgeColor(account.color).r, root.badgeColor(account.color).g, root.badgeColor(account.color).b, 0.14)
                 border.width: root.selectedAccount === account.email ? 1 : 0
                 border.color: root.badgeColor(account.color)
-                Text { id: fixedAccountLabel; anchors.centerIn: parent; text: parent.account.initials + " " + (parent.account.unavailable === true ? root.t("connect") : parent.account.unread); color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; font.bold: root.selectedAccount === parent.account.email }
+                Text { textFormat: Text.PlainText; id: fixedAccountLabel; anchors.centerIn: parent; text: parent.account.initials + " " + (parent.account.unavailable === true ? root.t("connect") : parent.account.unread); color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; font.bold: root.selectedAccount === parent.account.email }
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { root.selectedAccount = parent.account.email; root.selectedEmailIndex = 0; root.expandedEmailIndex = -1; Qt.callLater(root.ensureSelectedEmailVisible) } }
               }
             }
@@ -508,6 +681,7 @@ Panel {
             width: parent.width
             spacing: Style.space(8)
             Text {
+              textFormat: Text.PlainText
               text: root.t("accountBadges")
               color: Color.popups.text
               font.family: Style.font.family
@@ -515,6 +689,7 @@ Panel {
               font.bold: true
             }
             Text {
+              textFormat: Text.PlainText
               text: root.t("themeColorsHint")
               width: parent.width
               color: Color.popups.text
@@ -523,6 +698,7 @@ Panel {
               wrapMode: Text.WordWrap
             }
             Text {
+              textFormat: Text.PlainText
               width: parent.width
               text: root.tf("inboxSource", [root.sourceInfo.browser || root.t("unknown"), root.sourceInfo.profile || root.t("defaultProfile")])
               color: Color.popups.text
@@ -535,10 +711,11 @@ Panel {
               radius: Style.cornerRadius
               color: root.bridgeUpToDate ? Qt.rgba(root.badgeColor("green").r, root.badgeColor("green").g, root.badgeColor("green").b, 0.24) : Qt.rgba(Color.urgent.r, Color.urgent.g, Color.urgent.b, 0.16)
               border.color: root.bridgeUpToDate ? root.badgeColor("green") : Color.urgent
-              Text { anchors.left: parent.left; anchors.right: uninstallBridgeButton.left; anchors.verticalCenter: parent.verticalCenter; anchors.leftMargin: Style.space(10); anchors.rightMargin: Style.space(6); text: root.bridgeStatusText; color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; font.bold: true; elide: Text.ElideRight }
-              Button { id: uninstallBridgeButton; visible: root.bridgeInstalled; anchors.right: parent.right; anchors.rightMargin: Style.space(4); anchors.verticalCenter: parent.verticalCenter; iconText: "󰆴"; bordered: false; onClicked: root.uninstallBridge() }
+              Text { textFormat: Text.PlainText; anchors.left: parent.left; anchors.right: uninstallBridgeButton.left; anchors.verticalCenter: parent.verticalCenter; anchors.leftMargin: Style.space(10); anchors.rightMargin: Style.space(6); text: root.bridgeStatusText; color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; font.bold: true; elide: Text.ElideRight }
+              Button { id: uninstallBridgeButton; visible: root.bridgeInstalled || root.bridgeFlagsConfigured; enabled: !bridgeInstallProc.running && !flagsBridgeInstallProc.running && !browserExtensionSetupProc.running && !bridgeUninstallProc.running; anchors.right: parent.right; anchors.rightMargin: Style.space(4); anchors.verticalCenter: parent.verticalCenter; iconText: "󰆴"; bordered: false; onClicked: root.uninstallBridge() }
             }
             Text {
+              textFormat: Text.PlainText
               visible: root.bridgeLegacyRegistration
               width: parent.width
               text: root.bridgeStatusText
@@ -548,36 +725,54 @@ Panel {
               font.pixelSize: Style.font.caption
             }
             Rectangle {
-              visible: root.bridgeStatusKnown && !root.bridgeUpToDate
+              visible: root.bridgeStatusKnown || root.bridgeInstallState.length > 0
               width: parent.width
               height: bridgeInstallRow.implicitHeight + bridgeInstallStatus.implicitHeight + Style.space(20)
               radius: Style.cornerRadius
               color: Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.12)
               border.color: Color.accent
-              Row {
+              Column {
                 id: bridgeInstallRow
                 width: parent.width - Style.space(14)
                 anchors.top: parent.top
                 anchors.topMargin: Style.space(7)
                 anchors.horizontalCenter: parent.horizontalCenter
-                spacing: Style.space(8)
+                spacing: Style.space(6)
                 Text {
-                  width: parent.width - installBrowserBridgeButton.implicitWidth - Style.space(8)
-                  text: root.t("Prepare the local bridge, then load the extension in Chrome, Chromium or Brave. No administrator access is needed.")
+                  textFormat: Text.PlainText
+                  visible: !root.bridgeUpToDate
+                  width: parent.width
+                  text: root.t("Chromium and Brave install automatically from Mailbox. Chrome needs a one-time Load unpacked step in its Extensions page.")
                   wrapMode: Text.WordWrap
                   color: Color.popups.text
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
-                  anchors.verticalCenter: parent.verticalCenter
                 }
-                Button {
-                  id: installBrowserBridgeButton
-                  text: root.t("Prepare bridge")
-                  onClicked: root.installBridge()
-                  anchors.verticalCenter: parent.verticalCenter
+                Flow {
+                  width: parent.width
+                  spacing: Style.space(8)
+                  Button {
+                    id: installChromiumBridgeButton
+                    text: root.t("Install in Chromium")
+                    enabled: !bridgeInstallProc.running && !flagsBridgeInstallProc.running && !browserExtensionSetupProc.running && !bridgeUninstallProc.running
+                    onClicked: root.installFlagsBridge("chromium")
+                  }
+                  Button {
+                    id: installBraveBridgeButton
+                    text: root.t("Install in Brave")
+                    enabled: !bridgeInstallProc.running && !flagsBridgeInstallProc.running && !browserExtensionSetupProc.running && !bridgeUninstallProc.running
+                    onClicked: root.installFlagsBridge("brave")
+                  }
+                  Button {
+                    id: installChromeBridgeButton
+                    text: root.t("Set up Chrome")
+                    enabled: !bridgeInstallProc.running && !flagsBridgeInstallProc.running && !browserExtensionSetupProc.running && !bridgeUninstallProc.running
+                    onClicked: root.installBridge("chrome")
+                  }
                 }
               }
               Text {
+                textFormat: Text.PlainText
                 id: bridgeInstallStatus
                 anchors.left: parent.left
                 anchors.right: parent.right
@@ -594,7 +789,7 @@ Panel {
               }
             }
             TextInput {
-              visible: root.bridgeStatusKnown && !root.bridgeUpToDate
+              visible: root.bridgeStatusKnown && !root.bridgeUpToDate && !root.bridgeBrowserAutomatic
               width: parent.width
               text: root.bridgeExtensionPath
               readOnly: true
@@ -605,6 +800,7 @@ Panel {
               clip: true
             }
             Text {
+              textFormat: Text.PlainText
               visible: root.bridgeInstalled && root.bridgeInstallState.length > 0
               width: parent.width
               text: root.bridgeInstallState
@@ -616,8 +812,8 @@ Panel {
             Row {
               width: parent.width
               spacing: Style.space(8)
-              Text { text: root.t("openClosePanel"); color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
-              Text { text: "SUPER+SHIFT+"; color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+              Text { textFormat: Text.PlainText; text: root.t("openClosePanel"); color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+              Text { textFormat: Text.PlainText; text: "SUPER+SHIFT+"; color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
               TextInput {
                 id: shortcutKeyInput
                 width: Style.space(32); height: Style.space(28)
@@ -626,11 +822,12 @@ Panel {
                 color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.body
                 onTextEdited: { if (text.length === 1) root.saveShortcut(text) }
               }
-              Text { text: root.shortcutState; color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+              Text { textFormat: Text.PlainText; text: root.shortcutState; color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
             }
             Repeater {
               model: root.sourceInfo.known || []
               Text {
+                textFormat: Text.PlainText
                 width: parent.width
                 text: modelData.browser + " " + modelData.profile + ": " + modelData.emails.join(", ")
                 color: Color.popups.text
@@ -642,7 +839,7 @@ Panel {
             Row {
               width: parent.width
               spacing: Style.space(8)
-              Text { text: root.t("storedMessagesPerAccount"); color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+              Text { textFormat: Text.PlainText; text: root.t("storedMessagesPerAccount"); color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
               TextInput {
                 id: messageLimitInput
                 width: Style.space(52); height: Style.space(28)
@@ -651,20 +848,20 @@ Panel {
                 selectByMouse: true; inputMethodHints: Qt.ImhDigitsOnly
                 onEditingFinished: { root.maxMessagesPerAccount = Math.max(1, Math.min(Number(text), 200)); Quickshell.execDetached(["node", root.settingsBin, "set-limit", String(root.maxMessagesPerAccount)]); if (root.hostWidget) root.hostWidget.refresh(true) }
               }
-              Text { text: "1–200"; color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+              Text { textFormat: Text.PlainText; text: "1–200"; color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
             }
             Row {
               width: parent.width
               spacing: Style.space(8)
-              Text { text: root.t("downloadEmailContent"); color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+              Text { textFormat: Text.PlainText; text: root.t("downloadEmailContent"); color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
               ToggleSwitch { checked: root.downloadBodies; onToggled: root.setDownloadBodies(!root.downloadBodies) }
-              Text { width: parent.width - Style.space(220); text: root.t("downloadEmailContentHint"); wrapMode: Text.WordWrap; color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+              Text { textFormat: Text.PlainText; width: parent.width - Style.space(220); text: root.t("downloadEmailContentHint"); wrapMode: Text.WordWrap; color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
             }
             Row {
               width: parent.width
               spacing: Style.space(8)
               Button { text: root.t("clearDownloadedContent"); onClicked: root.clearBodies() }
-              Text { text: root.bodySettingsState; color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+              Text { textFormat: Text.PlainText; text: root.bodySettingsState; color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
             }
             Repeater {
               model: root.accounts
@@ -680,7 +877,7 @@ Panel {
                   color: account.notificationHealthy ? Qt.rgba(root.badgeColor("green").r, root.badgeColor("green").g, root.badgeColor("green").b, 0.24) : Qt.rgba(Color.urgent.r, Color.urgent.g, Color.urgent.b, 0.18)
                   border.width: 1
                   border.color: account.notificationHealthy ? root.badgeColor("green") : Color.urgent
-                  Text { anchors.centerIn: parent; text: parent.account.notificationHealthy ? "✓" : "!"; color: parent.account.notificationHealthy ? root.badgeColor("green") : Color.urgent; font.family: Style.font.family; font.pixelSize: Style.font.body; font.bold: true }
+                  Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: parent.account.notificationHealthy ? "✓" : "!"; color: parent.account.notificationHealthy ? root.badgeColor("green") : Color.urgent; font.family: Style.font.family; font.pixelSize: Style.font.body; font.bold: true }
                   MouseArea {
                     id: notificationStatusMouse
                     anchors.fill: parent
@@ -700,7 +897,7 @@ Panel {
                   height: Style.space(28)
                   radius: width / 2
                   color: root.badgeColor(parent.account.color)
-                  Text { anchors.centerIn: parent; text: parent.parent.account.initials; color: Color.background; font.family: Style.font.family; font.pixelSize: Style.font.caption; font.bold: true }
+                  Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: parent.parent.account.initials; color: Color.background; font.family: Style.font.family; font.pixelSize: Style.font.caption; font.bold: true }
                 }
                 TextInput {
                   id: initialsInput
@@ -714,7 +911,7 @@ Panel {
                   maximumLength: 3
                   onEditingFinished: root.saveBadge(parent.account.email, text, parent.account.color)
                 }
-                Text { width: Style.space(150); text: parent.account.label || parent.account.email; color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; elide: Text.ElideRight; anchors.verticalCenter: parent.verticalCenter }
+                Text { textFormat: Text.PlainText; width: Style.space(150); text: parent.account.label || parent.account.email; color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; elide: Text.ElideRight; anchors.verticalCenter: parent.verticalCenter }
                 Repeater {
                   model: [{ role: "accent", label: "A" }, { role: "red", label: "R" }, { role: "yellow", label: "Y" }, { role: "orange", label: "O" }, { role: "green", label: "G" }, { role: "cyan", label: "C" }, { role: "blue", label: "B" }, { role: "magenta", label: "M" }, { role: "brown", label: "N" }]
                   Rectangle {
@@ -724,7 +921,7 @@ Panel {
                     color: root.badgeColor(modelData.role)
                     border.width: modelData.role === parent.account.color ? 2 : 0
                     border.color: Color.popups.text
-                    Text { anchors.centerIn: parent; text: modelData.label; color: Color.background; font.family: Style.font.family; font.pixelSize: Style.font.caption; font.bold: true }
+                    Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: modelData.label; color: Color.background; font.family: Style.font.family; font.pixelSize: Style.font.caption; font.bold: true }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.saveBadge(parent.parent.account.email, initialsInput.text, modelData.role) }
                   }
                 }
@@ -733,6 +930,7 @@ Panel {
           }
 
           Text {
+            textFormat: Text.PlainText
             visible: root.fetchStatus !== "ok" || root.fetchMessage.length > 0
             width: parent.width - Style.space(16)
             anchors.horizontalCenter: parent.horizontalCenter
@@ -758,6 +956,7 @@ Panel {
               anchors.centerIn: parent
               spacing: Style.space(8)
               Text {
+                textFormat: Text.PlainText
                 width: parent.width - reconnectButton.implicitWidth - Style.space(8)
                 text: root.t("gmailNotConnected")
                 wrapMode: Text.WordWrap
@@ -770,7 +969,7 @@ Panel {
                 id: reconnectButton
                 visible: root.bridgeStatusKnown
                 text: root.bridgeInstalled ? root.t("connect") : root.t("installBridge")
-                onClicked: root.bridgeInstalled ? root.reconnectSelectedAccount() : root.installBridge()
+                onClicked: root.bridgeInstalled ? root.reconnectSelectedAccount() : root.showSettings()
                 anchors.verticalCenter: parent.verticalCenter
               }
             }
@@ -785,6 +984,7 @@ Panel {
             color: Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.16)
             border.color: Color.accent
             Text {
+              textFormat: Text.PlainText
               anchors.centerIn: parent
               text: root.fetchStatus === "login-required" ? root.t("openGmail") : root.t("openInbox")
               color: Color.popups.text
@@ -817,6 +1017,7 @@ Panel {
                 anchors.centerIn: parent
                 spacing: Style.space(2)
                 Text {
+                  textFormat: Text.PlainText
                   width: parent.width
                   text: (modelData.notification ? "󰂚 " : (root.expandedEmailIndex === index ? "󰁅 " : "󰁝 ")) + (root.selectedAccount === "__all__" ? "[" + (modelData.initials || "?") + "] " : "") + modelData.from + (modelData.date ? " · " + modelData.date : "")
                   color: Color.popups.text
@@ -826,6 +1027,7 @@ Panel {
                   elide: Text.ElideRight
                 }
                 Text {
+                  textFormat: Text.PlainText
                   width: parent.width
                   text: modelData.subject || root.t("noSubject")
                   color: Color.popups.text
@@ -835,6 +1037,7 @@ Panel {
                   elide: Text.ElideRight
                 }
                 Text {
+                  textFormat: Text.PlainText
                   width: parent.width
                   text: root.expandedEmailIndex === index ? root.emailBodyText(modelData) : modelData.snippet
                   color: Qt.darker(Color.popups.text, 1.3)
