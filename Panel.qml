@@ -42,6 +42,8 @@ Panel {
   property var replyEmail: null
   property string replyState: ""
   property bool replyDirty: false
+  // Threads with a saved reply draft, keyed by account and thread id.
+  property var draftKeys: ({})
   property string forceRefreshBin: Qt.resolvedUrl("bin/mailbox-force-refresh.js").toString().replace("file://", "")
   property string bridgeInstallState: ""
   property string bridgeStatusText: ""
@@ -101,6 +103,8 @@ Panel {
     for (var i = 0; i < root.accounts.length; i++) last = Math.max(last, Number(root.accounts[i].lastCapturedAt || 0))
     return last > 0 ? root.t("Extension not installed") + " · 󰑐 " + root.displayDate({ dateSort: last }) : ""
   }
+  function hasDraft(email) { return !!email && !!email.threadId && root.draftKeys[(email.account || "") + "\u0000" + email.threadId] === true }
+  function refreshDrafts() { if (!draftListProc.running) draftListProc.running = true }
   function browserFlag() { return root.bridgeBrowserTarget === "chromium" ? "--chromium" : root.bridgeBrowserTarget === "brave" ? "--brave" : root.bridgeBrowserTarget === "chrome" ? "--chrome" : "" }
   function replyRequest(extra) {
     var email = root.replyEmail || {}
@@ -280,6 +284,21 @@ Panel {
 
   // Drafts go over stdin, never argv.
   Process {
+    id: draftListProc
+    command: ["node", root.draftsBin, "list"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try {
+          var keys = {}
+          var drafts = JSON.parse(text).drafts || []
+          for (var i = 0; i < drafts.length; i++) keys[drafts[i].account + "\u0000" + drafts[i].threadId] = true
+          root.draftKeys = keys
+        } catch (_) {}
+      }
+    }
+  }
+  Process {
     id: draftLoadProc
     command: ["node", root.draftsBin, "load"]
     stdinEnabled: true
@@ -299,7 +318,7 @@ Panel {
     command: ["node", root.draftsBin, "save"]
     stdinEnabled: true
     onStarted: write(root.replyRequest({ text: replyEditor.text }))
-    onExited: function(exitCode) { root.replyState = exitCode === 0 ? root.tf("Draft saved %1", [root.displayDate({ dateSort: Date.now() })]) : root.t("Could not save the draft.") }
+    onExited: function(exitCode) { root.replyState = exitCode === 0 ? root.tf("Draft saved %1", [root.displayDate({ dateSort: Date.now() })]) : root.t("Could not save the draft."); root.refreshDrafts() }
   }
   Timer { id: draftSaveTimer; interval: 700; repeat: false; onTriggered: root.saveReplyNow() }
   Process {
@@ -307,7 +326,7 @@ Panel {
     command: ["node", root.draftsBin, "open"]
     stdinEnabled: true
     onStarted: write(root.replyRequest({ text: replyEditor.text }))
-    onExited: function(exitCode) { if (exitCode === 0) { root.replyState = root.t("Reply opened in your browser. Review it and press Send there."); root.replyOpen = false; root.close() } }
+    onExited: function(exitCode) { root.refreshDrafts(); if (exitCode === 0) { root.replyState = root.t("Reply opened in your browser. Review it and press Send there."); root.replyOpen = false; root.close() } }
     stderr: StdioCollector { waitForEnd: true; onStreamFinished: { if (text.trim().length) root.replyState = root.tf("Could not open the reply: %1", [text.trim()]) } }
   }
   Process {
@@ -315,6 +334,7 @@ Panel {
     command: ["node", root.draftsBin, "discard"]
     stdinEnabled: true
     onStarted: write(root.replyRequest({}))
+    onExited: root.refreshDrafts()
   }
 
   Timer { id: bridgeStatusRetry; interval: 3500; repeat: false; onTriggered: { if (!bridgeStatusProc.running) bridgeStatusProc.running = true } }
@@ -1196,7 +1216,7 @@ Panel {
                 Text {
                   textFormat: Text.PlainText
                   width: parent.width
-                  text: (modelData.notification ? "󰂚 " : (root.isExpanded(index, modelData) ? "󰁅 " : "󰁝 ")) + (root.selectedAccount === "__all__" ? "[" + (modelData.initials || "?") + "] " : "") + modelData.from + (root.displayDate(modelData) ? " · " + root.displayDate(modelData) : "")
+                  text: (modelData.notification ? "󰂚 " : (root.isExpanded(index, modelData) ? "󰁅 " : "󰁝 ")) + (root.hasDraft(modelData) ? "󰏫 " : "") + (root.selectedAccount === "__all__" ? "[" + (modelData.initials || "?") + "] " : "") + modelData.from + (root.displayDate(modelData) ? " · " + root.displayDate(modelData) : "")
                   color: Color.popups.text
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
@@ -1241,6 +1261,7 @@ Panel {
   onOpenedChanged: {
     if (!root.opened) root.saveReplyNow()
     if (root.opened) {
+      root.refreshDrafts()
       Qt.callLater(function() { keyFront.forceActiveFocus() })
       root.checkBridgeStatus()
       if (root.hostWidget) root.hostWidget.refresh()

@@ -3,7 +3,8 @@
 // crash or a closed panel never loses it. "open" hands the draft to the browser
 // extension, which opens the reply in your account with the text filled in;
 // sending stays in Gmail or HEY. Commands read one JSON line from stdin:
-//   load | save | discard | open [--chromium|--brave|--chrome]
+//   list | load | save | discard | open [--chromium|--brave|--chrome]
+// list needs no input and returns which threads have a draft, without text.
 const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
@@ -14,6 +15,7 @@ const DRAFTS_DIR = path.join(os.homedir(), '.local', 'state', 'omarchy', 'mailbo
 const MAX_INPUT_BYTES = 512 * 1024;
 const MAX_TEXT = 200000;
 const MAX_DRAFT_BYTES = 1024 * 1024;
+const MAX_LISTED = 500;
 
 function draftId(account, threadId) {
   return crypto.createHash('sha256').update(`${account}\0${threadId}`).digest('hex').slice(0, 32);
@@ -100,8 +102,22 @@ function saveDraft(request, extra = {}) {
   return draft;
 }
 
+function listDrafts() {
+  const names = [];
+  let dir;
+  try { dir = fs.opendirSync(DRAFTS_DIR); } catch (_) { return []; }
+  try {
+    for (let entry = dir.readSync(); entry && names.length < MAX_LISTED; entry = dir.readSync()) {
+      if (entry.isFile() && /^[a-f0-9]{32}\.json$/.test(entry.name)) names.push(entry.name.slice(0, 32));
+    }
+  } finally { dir.closeSync(); }
+  return names.map(loadDraft).filter(draft => draft && String(draft.text || '').trim())
+    .map(draft => ({ account: draft.account, threadId: draft.threadId, savedAt: Number(draft.savedAt || 0) }));
+}
+
 async function main() {
   const command = process.argv[2];
+  if (command === 'list') { console.log(JSON.stringify({ drafts: listDrafts() })); return; }
   const request = await readRequest();
   if (command === 'load') {
     const draft = loadDraft(draftId(String(request.account || ''), String(request.threadId || '')));

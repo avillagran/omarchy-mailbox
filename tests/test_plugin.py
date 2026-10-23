@@ -312,6 +312,9 @@ def test_reply_drafts():
     linked = call(home, "save", request)
     check("reply draft never writes through a symlink", linked.returncode != 0 and victim.read_text() == "keep", linked.stderr)
     target.unlink()
+    call(home, "save", request)
+    listed = json.loads(subprocess.run(["node", str(drafts), "list"], capture_output=True, text=True, env={**os.environ, "HOME": str(home)}, timeout=20).stdout)
+    check("draft list names threads without their text", {"account": request["account"], "threadId": request["threadId"]}.items() <= next((d for d in listed["drafts"] if d["threadId"] == "18c0ffee"), {}).items() and "text" not in json.dumps(listed), str(listed))
     call(home, "discard", {"account": request["account"], "threadId": request["threadId"]})
     check("reply draft can be discarded", not target.exists())
 
@@ -332,6 +335,10 @@ def test_reply_drafts():
   check("reply text reaches helpers over stdin, not argv", "onStarted: write(root.replyRequest({ text: replyEditor.text }))" in panel and "replyEditor.text]" not in panel)
   check("reply draft saves while typing and on close", "draftSaveTimer.restart()" in panel and "if (!root.opened) root.saveReplyNow()" in panel)
   check("R opens the reply box and Ctrl+Enter hands it off", 'root.openReply(); event.accepted = true' in panel and "root.sendReplyToBrowser()" in panel)
+  check("rows with a saved draft show a draft icon", 'root.hasDraft(modelData) ? "󰏫 " : ""' in panel and "root.refreshDrafts()" in panel)
+  background = (ROOT / "bridge-extension/source/background.js").read_text()
+  check("extension reloads itself after a plugin update", 'chrome.runtime.getURL("manifest.json")' in background and "chrome.runtime.reload()" in background)
+  check("reply errors name a stale extension instead of a missing one", "is still running Mailbox Local Bridge" in (ROOT / "bin/mailbox-force-refresh.js").read_text())
   check("reply is filled in Gmail but never sent", "mailbox-compose-reply" in content and "insertText" in content and not re.search(r"(?i)send", content[content.index("async function composeReply"):content.index("chrome.runtime.onMessage.addListener((message, sender, sendResponse)")]) and "never presses Send" in reply)
 
 

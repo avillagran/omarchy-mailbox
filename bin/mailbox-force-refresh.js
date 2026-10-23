@@ -13,6 +13,9 @@ function openExtensionPage(page, selectedBrowser) {
   if (!/^[a-z]+\.html(?:#[a-f0-9]{32})?$/.test(page)) throw new Error('Unknown extension page');
   const status = JSON.parse(execFileSync(process.execPath,
     [path.join(__dirname, 'mailbox-bridge-status.js'), ...(selectedBrowser ? [selectedBrowser] : [])], { encoding: 'utf8' }));
+  if (!status.upToDate && status.installed && status.runtimeVersion && status.runtimeVersion !== status.latestVersion) {
+    throw new Error(`The browser is still running Mailbox Local Bridge ${status.runtimeVersion}. Click Reload on it in the Extensions page to use ${status.latestVersion}.`);
+  }
   if (!status.upToDate) throw new Error('Mailbox Local Bridge is not configured in this browser. Install it in Chromium or Brave from Mailbox preferences, or use Set up Chrome, then Developer mode → Load unpacked.');
   const desktop = status.browser;
   const chromiumFamily = /(chrome|chromium|brave|vivaldi|microsoft-edge)/i;

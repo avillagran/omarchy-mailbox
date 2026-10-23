@@ -28,14 +28,25 @@ function requestSnapshots() {
     for (const tab of tabs) refreshTab(tab.id);
   });
 }
+// Unpacked installs read files from the plugin folder, but the running copy
+// only changes on reload. Reload once when the manifest on disk is newer, so a
+// plugin update reaches the browser without a trip to chrome://extensions.
+async function reloadIfUpdated() {
+  try {
+    const response = await fetch(chrome.runtime.getURL("manifest.json"), { cache: "no-store" });
+    const onDisk = (await response.json()).version;
+    if (onDisk && onDisk !== chrome.runtime.getManifest().version) chrome.runtime.reload();
+  } catch (_) {}
+}
 function startupProbe() {
+  reloadIfUpdated();
   sendNative({ type: "bridge-health", bridgeVersion: chrome.runtime.getManifest().version, capturedAt: Date.now() });
   chrome.alarms.create("mailbox-refresh", { periodInMinutes: 1 });
   requestSnapshots();
 }
 chrome.runtime.onStartup.addListener(startupProbe);
 chrome.runtime.onInstalled.addListener(startupProbe);
-chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === "mailbox-refresh") requestSnapshots(); });
+chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === "mailbox-refresh") { reloadIfUpdated(); requestSnapshots(); } });
 chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
   if ((change.status === "complete" || change.url) && isSupportedUrl(tab.url || change.url)) refreshTab(tabId);
 });
