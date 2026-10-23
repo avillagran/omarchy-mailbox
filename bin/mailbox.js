@@ -157,10 +157,12 @@ function readBridge() {
 function applyLocalRead(result) {
   let markedAt = 0;
   try { markedAt = Number(readJson(SETTINGS_FILE, LIMITS.settings).localReadAt || 0); } catch (_) {}
+  // Messages the provider reports as opened stay listed, just not highlighted.
+  result = { ...result, emails: (result.emails || []).map(email => !email.notification && email.unread === false ? { ...email, read: true } : email) };
   if (!markedAt) return result;
   // Marking as read keeps every message in the list; only messages that arrive
   // after the mark still count as unread and keep their highlight.
-  const emails = (result.emails || []).map(email => (Number(email.dateSort || 0) > markedAt || Number(email.timestamp || 0) > markedAt) ? email : { ...email, read: true });
+  const emails = (result.emails || []).map(email => (email.read || !(Number(email.dateSort || 0) > markedAt || Number(email.timestamp || 0) > markedAt)) ? { ...email, read: true } : email);
   const accounts = (result.accounts || []).map(account => ({ ...account, unread: emails.filter(email => email.account === account.email && !email.read).length }));
   return { ...result, accounts, emails, total: accounts.reduce((sum, account) => sum + account.unread, 0), localReadAt: markedAt };
 }

@@ -74,6 +74,7 @@ data.maxMessagesPerAccount = Math.max(1, Math.min(Number(data.maxMessagesPerAcco
 data.shortcutKey = /^[A-Z]$/.test(String(data.shortcutKey || '').toUpperCase()) ? String(data.shortcutKey).toUpperCase() : 'Q';
 data.downloadBodies = data.downloadBodies !== false;
 data.bridgeBrowserTarget = ['chrome', 'brave', 'chromium'].includes(data.bridgeBrowserTarget) ? data.bridgeBrowserTarget : '';
+data.inboxZero = data.inboxZero === true;
 if (command === 'set') {
   if (!email || !initials(badge) || !colors.has(color)) process.exit(2);
   data.accounts[email] = { initials: initials(badge), color };
@@ -100,6 +101,10 @@ if (command === 'set') {
   data.downloadBodies = email === 'true';
   write(data);
   if (!data.downloadBodies) purgeBodies();
+} else if (command === 'set-inbox-zero') {
+  if (email !== 'true' && email !== 'false') process.exit(2);
+  data.inboxZero = email === 'true';
+  write(data);
 } else if (command === 'clear-bodies') {
   purgeBodies();
 }

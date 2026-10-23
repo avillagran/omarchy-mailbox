@@ -92,7 +92,7 @@ def test_i18n():
   english = catalog["en"]
   keys = set(english) - {""}
   check("i18n has 19 locales", len(catalog) == 19, str(sorted(catalog)))
-  check("i18n has 78 message IDs", len(keys) == 78, str(len(keys)))
+  check("i18n has 79 message IDs", len(keys) == 79, str(len(keys)))
   check("automatic Brave setup is localized", catalog["es"]["Install in Brave"] == "Instalar en Brave")
   check("configured status copy is localizable", "Extension %1 is configured; confirm it in the browser." in english)
   check("guided browser setup is localized", "Set up Chrome" in english and "Quit and reopen %1 to activate Mailbox Local Bridge." in english and "Drag Mailbox onto the page" in english and catalog["es"]["Turn on Developer mode"] == "Activa el Modo de desarrollador")
@@ -344,6 +344,25 @@ def test_reply_drafts():
   check("header ! opens preferences", "id: bridgeWarningButton" in panel and "visible: root.bridgeNeedsUpdate" in panel and "onClicked: root.showSettings()" in panel[panel.index("id: bridgeWarningButton"):][:600])
   check("extension status is rechecked while the panel is closed", "interval: 120000; repeat: true; running: true; triggeredOnStart: true" in panel)
   check("reply is filled in Gmail but never sent", "mailbox-compose-reply" in content and "insertText" in content and not re.search(r"(?i)send", content[content.index("async function composeReply"):content.index("chrome.runtime.onMessage.addListener((message, sender, sendResponse)")]) and "never presses Send" in reply)
+
+
+def test_mail_client_listing():
+  with tempfile.TemporaryDirectory() as directory:
+    home = Path(directory)
+    (home / ".config/omarchy").mkdir(parents=True)
+    cache = home / ".cache/omarchy/mailbox"
+    cache.mkdir(parents=True)
+    now = int(time.time() * 1000)
+    (cache / "bridge.json").write_text(json.dumps({"accounts": {"reader@example.test": {"account": "reader@example.test", "index": "0", "unread": 1, "capturedAt": now, "emails": [
+      {"threadId": "SEEN", "from": "A", "subject": "Opened in Gmail", "dateTimestamp": now - 2000, "unread": False},
+      {"threadId": "NEW", "from": "B", "subject": "Not opened", "dateTimestamp": now - 1000, "unread": True}]}}}))
+    data = json.loads(run(["node", str(ROOT / "bin/mailbox.js")], env={**os.environ, "HOME": str(home), "MAILBOX_CACHE_TTL_MS": "0"}).stdout)
+    rows = {row.get("threadId"): row for row in data.get("emails", [])}
+    check("opened messages stay in the list", set(rows) == {"SEEN", "NEW"}, str(list(rows)))
+    check("only unopened messages keep the highlight", rows["SEEN"].get("read") is True and not rows["NEW"].get("read"), str(rows))
+  panel = (ROOT / "Panel.qml").read_text()
+  check("Inbox 0 hides read messages only while enabled", "return !root.inboxZero || !email.read" in panel and 'text: "Inbox 0"' in panel and '"set-inbox-zero"' in panel)
+  check("Inbox 0 choice persists", "data.inboxZero = data.inboxZero === true;" in (ROOT / "bin/mailbox-settings.js").read_text() and "root.inboxZero = value.inboxZero === true" in panel)
 
 
 def test_reading_navigation():
@@ -872,6 +891,7 @@ def main():
   test_mark_as_read_keeps_messages()
   test_reply_drafts()
   test_reading_navigation()
+  test_mail_client_listing()
   test_notification_reconciliation()
   test_native_host()
   test_bounded_inputs()

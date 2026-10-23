@@ -77,6 +77,8 @@ Panel {
   // Shift+Space opens every message at once.
   property bool readingMode: false
   property bool expandAll: false
+  // Inbox 0 lists only messages not yet seen; the list empties as you read.
+  property bool inboxZero: false
   // The browser extension block stays folded while everything is healthy and
   // opens by itself whenever an install or update needs attention.
   property bool bridgeSectionExpanded: false
@@ -158,8 +160,17 @@ Panel {
     return 0
   }
   function filteredEmails() {
-    if (root.selectedAccount === "__all__") return root.emails
-    return root.emails.filter(function(email) { return email.account === root.selectedAccount })
+    return root.emails.filter(function(email) {
+      if (root.selectedAccount !== "__all__" && email.account !== root.selectedAccount) return false
+      return !root.inboxZero || !email.read
+    })
+  }
+  function toggleInboxZero() {
+    root.inboxZero = !root.inboxZero
+    Quickshell.execDetached(["node", root.settingsBin, "set-inbox-zero", root.inboxZero ? "true" : "false"])
+    root.selectedEmailIndex = 0
+    root.expandedEmailIndex = root.readingMode ? 0 : -1
+    Qt.callLater(root.ensureSelectedEmailVisible)
   }
   function ensureSelectedEmailVisible() {
     var rows = root.filteredEmails()
@@ -383,6 +394,7 @@ Panel {
       root.shortcutKey = value.shortcutKey || "Q"
       root.maxMessagesPerAccount = value.maxMessagesPerAccount || 50
       root.downloadBodies = value.downloadBodies !== false
+      root.inboxZero = value.inboxZero === true
       if (!root.bridgeBrowserTargetChosen) {
         var selected = value.bridgeBrowserTarget || ""
         if (root.bridgeBrowserTarget !== selected) {
@@ -632,6 +644,7 @@ Panel {
   }
 
   ChromeGuide { id: chromeGuide; panel: root }
+  Component.onCompleted: shortcutLoadProc.running = true
 
   PinnedKeyboardPanel {
     id: panel
@@ -710,8 +723,17 @@ Panel {
             elide: Text.ElideRight
             // Long localized titles shrink instead of pushing the buttons past
             // the panel edge. The trailing controls keep their natural width.
-            width: Math.min(implicitWidth, Math.max(0, headerRow.width - x - markReadButton.width - refreshButton.width - preferencesReveal.width - 4 * headerRow.spacing))
+            width: Math.min(implicitWidth, Math.max(0, headerRow.width - x - inboxZeroButton.width - markReadButton.width - refreshButton.width - preferencesReveal.width - 5 * headerRow.spacing))
             anchors.verticalCenter: parent.verticalCenter
+          }
+          Button {
+            id: inboxZeroButton
+            text: "Inbox 0"
+            tooltipText: root.t("Show only messages you have not read yet.")
+            active: root.inboxZero
+            bordered: root.inboxZero
+            anchors.verticalCenter: parent.verticalCenter
+            onClicked: root.toggleInboxZero()
           }
           Button {
             id: markReadButton
@@ -1287,6 +1309,7 @@ Panel {
     if (!root.opened) root.saveReplyNow()
     if (root.opened) {
       root.refreshDrafts()
+      if (!shortcutLoadProc.running) shortcutLoadProc.running = true
       Qt.callLater(function() { keyFront.forceActiveFocus() })
       root.checkBridgeStatus()
       if (root.hostWidget) root.hostWidget.refresh()

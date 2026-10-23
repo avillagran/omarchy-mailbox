@@ -81,7 +81,8 @@
     "Could not open the reply: %1": "Could not open the reply: %1",
     "Discard draft": "Discard draft",
     "Reply in Gmail": "Reply in Gmail",
-    "Reply in HEY": "Reply in HEY"
+    "Reply in HEY": "Reply in HEY",
+    "Show only messages you have not read yet.": "Show only messages you have not read yet."
   },
   "es": {
     "": {
@@ -165,7 +166,8 @@
     "Could not open the reply: %1": "No se pudo abrir la respuesta: %1",
     "Discard draft": "Descartar borrador",
     "Reply in Gmail": "Responder en Gmail",
-    "Reply in HEY": "Responder en HEY"
+    "Reply in HEY": "Responder en HEY",
+    "Show only messages you have not read yet.": "Muestra solo los correos que aún no has leído."
   },
   "pt": {
     "": {
@@ -249,7 +251,8 @@
     "Could not open the reply: %1": "Não foi possível abrir a resposta: %1",
     "Discard draft": "Descartar rascunho",
     "Reply in Gmail": "Responder no Gmail",
-    "Reply in HEY": "Responder no HEY"
+    "Reply in HEY": "Responder no HEY",
+    "Show only messages you have not read yet.": "Mostra apenas as mensagens que você ainda não leu."
   },
   "fr": {
     "": {
@@ -333,7 +336,8 @@
     "Could not open the reply: %1": "Impossible d’ouvrir la réponse : %1",
     "Discard draft": "Supprimer le brouillon",
     "Reply in Gmail": "Répondre dans Gmail",
-    "Reply in HEY": "Répondre dans HEY"
+    "Reply in HEY": "Répondre dans HEY",
+    "Show only messages you have not read yet.": "Affiche uniquement les messages que vous n’avez pas encore lus."
   },
   "de": {
     "": {
@@ -417,7 +421,8 @@
     "Could not open the reply: %1": "Die Antwort konnte nicht geöffnet werden: %1",
     "Discard draft": "Entwurf verwerfen",
     "Reply in Gmail": "In Gmail antworten",
-    "Reply in HEY": "In HEY antworten"
+    "Reply in HEY": "In HEY antworten",
+    "Show only messages you have not read yet.": "Zeigt nur Nachrichten, die du noch nicht gelesen hast."
   },
   "it": {
     "": {
@@ -501,7 +506,8 @@
     "Could not open the reply: %1": "Impossibile aprire la risposta: %1",
     "Discard draft": "Elimina bozza",
     "Reply in Gmail": "Rispondi in Gmail",
-    "Reply in HEY": "Rispondi in HEY"
+    "Reply in HEY": "Rispondi in HEY",
+    "Show only messages you have not read yet.": "Mostra solo i messaggi che non hai ancora letto."
   },
   "nl": {
     "": {
@@ -585,7 +591,8 @@
     "Could not open the reply: %1": "Het antwoord kon niet worden geopend: %1",
     "Discard draft": "Concept verwijderen",
     "Reply in Gmail": "Antwoorden in Gmail",
-    "Reply in HEY": "Antwoorden in HEY"
+    "Reply in HEY": "Antwoorden in HEY",
+    "Show only messages you have not read yet.": "Toont alleen berichten die je nog niet hebt gelezen."
   },
   "pl": {
     "": {
@@ -669,7 +676,8 @@
     "Could not open the reply: %1": "Nie udało się otworzyć odpowiedzi: %1",
     "Discard draft": "Odrzuć wersję roboczą",
     "Reply in Gmail": "Odpowiedz w Gmailu",
-    "Reply in HEY": "Odpowiedz w HEY"
+    "Reply in HEY": "Odpowiedz w HEY",
+    "Show only messages you have not read yet.": "Pokazuje tylko wiadomości, których jeszcze nie przeczytano."
   },
   "ru": {
     "": {
@@ -753,7 +761,8 @@
     "Could not open the reply: %1": "Не удалось открыть ответ: %1",
     "Discard draft": "Удалить черновик",
     "Reply in Gmail": "Ответить в Gmail",
-    "Reply in HEY": "Ответить в HEY"
+    "Reply in HEY": "Ответить в HEY",
+    "Show only messages you have not read yet.": "Показывать только непрочитанные письма."
   },
   "ja": {
     "": {
@@ -837,7 +846,8 @@
     "Could not open the reply: %1": "返信を開けませんでした: %1",
     "Discard draft": "下書きを破棄",
     "Reply in Gmail": "Gmail で返信",
-    "Reply in HEY": "HEY で返信"
+    "Reply in HEY": "HEY で返信",
+    "Show only messages you have not read yet.": "まだ読んでいないメッセージだけを表示します。"
   },
   "ko": {
     "": {
@@ -921,7 +931,8 @@
     "Could not open the reply: %1": "답장을 열 수 없습니다: %1",
     "Discard draft": "임시 저장 삭제",
     "Reply in Gmail": "Gmail에서 답장",
-    "Reply in HEY": "HEY에서 답장"
+    "Reply in HEY": "HEY에서 답장",
+    "Show only messages you have not read yet.": "아직 읽지 않은 메시지만 표시합니다."
   },
   "zh": {
     "": {
@@ -1005,7 +1016,8 @@
     "Could not open the reply: %1": "无法打开回复：%1",
     "Discard draft": "舍弃草稿",
     "Reply in Gmail": "在 Gmail 中回复",
-    "Reply in HEY": "在 HEY 中回复"
+    "Reply in HEY": "在 HEY 中回复",
+    "Show only messages you have not read yet.": "只显示尚未阅读的邮件。"
   },
   "ar": {
     "": {
@@ -1089,7 +1101,8 @@
     "Could not open the reply: %1": "تعذّر فتح الرد: %1",
     "Discard draft": "تجاهل المسودة",
     "Reply in Gmail": "الرد في Gmail",
-    "Reply in HEY": "الرد في HEY"
+    "Reply in HEY": "الرد في HEY",
+    "Show only messages you have not read yet.": "إظهار الرسائل التي لم تقرأها بعد فقط."
   },
   "tr": {
     "": {
@@ -1173,7 +1186,8 @@
     "Could not open the reply: %1": "Yanıt açılamadı: %1",
     "Discard draft": "Taslağı sil",
     "Reply in Gmail": "Gmail'de yanıtla",
-    "Reply in HEY": "HEY'de yanıtla"
+    "Reply in HEY": "HEY'de yanıtla",
+    "Show only messages you have not read yet.": "Yalnızca henüz okumadığınız iletileri gösterir."
   },
   "sv": {
     "": {
@@ -1257,7 +1271,8 @@
     "Could not open the reply: %1": "Det gick inte att öppna svaret: %1",
     "Discard draft": "Släng utkast",
     "Reply in Gmail": "Svara i Gmail",
-    "Reply in HEY": "Svara i HEY"
+    "Reply in HEY": "Svara i HEY",
+    "Show only messages you have not read yet.": "Visar bara meddelanden du inte har läst än."
   },
   "da": {
     "": {
@@ -1341,7 +1356,8 @@
     "Could not open the reply: %1": "Svaret kunne ikke åbnes: %1",
     "Discard draft": "Kassér kladde",
     "Reply in Gmail": "Svar i Gmail",
-    "Reply in HEY": "Svar i HEY"
+    "Reply in HEY": "Svar i HEY",
+    "Show only messages you have not read yet.": "Viser kun beskeder, du ikke har læst endnu."
   },
   "no": {
     "": {
@@ -1425,7 +1441,8 @@
     "Could not open the reply: %1": "Kunne ikke åpne svaret: %1",
     "Discard draft": "Forkast utkast",
     "Reply in Gmail": "Svar i Gmail",
-    "Reply in HEY": "Svar i HEY"
+    "Reply in HEY": "Svar i HEY",
+    "Show only messages you have not read yet.": "Viser bare meldinger du ikke har lest ennå."
   },
   "fi": {
     "": {
@@ -1509,7 +1526,8 @@
     "Could not open the reply: %1": "Vastausta ei voitu avata: %1",
     "Discard draft": "Hylkää luonnos",
     "Reply in Gmail": "Vastaa Gmailissa",
-    "Reply in HEY": "Vastaa HEYssä"
+    "Reply in HEY": "Vastaa HEYssä",
+    "Show only messages you have not read yet.": "Näyttää vain viestit, joita et ole vielä lukenut."
   },
   "cs": {
     "": {
@@ -1593,6 +1611,7 @@
     "Could not open the reply: %1": "Odpověď se nepodařilo otevřít: %1",
     "Discard draft": "Zahodit koncept",
     "Reply in Gmail": "Odpovědět v Gmailu",
-    "Reply in HEY": "Odpovědět v HEY"
+    "Reply in HEY": "Odpovědět v HEY",
+    "Show only messages you have not read yet.": "Zobrazí jen zprávy, které jste ještě nečetli."
   }
 }
