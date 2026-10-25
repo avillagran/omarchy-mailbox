@@ -9,7 +9,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { readJson } = require(path.join(__dirname, 'mailbox-bounded-read.js'));
+const { readJson, readStdinJson } = require(path.join(__dirname, 'mailbox-bounded-read.js'));
 
 const DRAFTS_DIR = path.join(os.homedir(), '.local', 'state', 'omarchy', 'mailbox', 'drafts');
 const MAX_INPUT_BYTES = 512 * 1024;
@@ -59,22 +59,7 @@ function ensureDir() {
   if (!stat.isDirectory() || stat.uid !== process.getuid()) throw new Error(`Unsafe directory: ${DRAFTS_DIR}`);
 }
 function readRequest() {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let size = 0;
-    process.stdin.on('data', chunk => {
-      size += chunk.length;
-      if (size > MAX_INPUT_BYTES) { reject(new Error('Draft too large')); process.stdin.destroy(); return; }
-      chunks.push(chunk);
-      const text = Buffer.concat(chunks).toString('utf8');
-      const newline = text.indexOf('\n');
-      if (newline < 0) return;
-      process.stdin.destroy();
-      try { resolve(JSON.parse(text.slice(0, newline))); } catch (error) { reject(error); }
-    });
-    process.stdin.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch (error) { reject(error); } });
-    process.stdin.on('error', reject);
-  });
+  return readStdinJson(MAX_INPUT_BYTES);
 }
 function loadDraft(id) {
   try { return readJson(draftFile(id), MAX_DRAFT_BYTES); } catch (_) { return null; }

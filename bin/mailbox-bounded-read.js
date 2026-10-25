@@ -38,4 +38,34 @@ function readJson(file, maxBytes) {
   return JSON.parse(readText(file, maxBytes));
 }
 
-module.exports = { readText, readJson, LIMITS };
+// One JSON request line on stdin, so private values never appear in process
+// arguments. Bounded in size and time: a writer that never sends a newline or
+// never closes the pipe cannot keep the process waiting.
+function readStdinJson(maxBytes, timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    let done = false;
+    const finish = (error, value) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      process.stdin.destroy();
+      if (error) reject(error); else resolve(value);
+    };
+    const parse = text => { try { finish(null, JSON.parse(text || '{}')); } catch (error) { finish(error); } };
+    const timer = setTimeout(() => finish(new Error('Timed out waiting for the request')), timeoutMs);
+    process.stdin.on('data', chunk => {
+      size += chunk.length;
+      if (size > maxBytes) return finish(new Error('Request too large'));
+      chunks.push(chunk);
+      const text = Buffer.concat(chunks).toString('utf8');
+      const newline = text.indexOf('\n');
+      if (newline >= 0) parse(text.slice(0, newline));
+    });
+    process.stdin.on('end', () => parse(Buffer.concat(chunks).toString('utf8')));
+    process.stdin.on('error', error => finish(error));
+  });
+}
+
+module.exports = { readText, readJson, readStdinJson, LIMITS };

@@ -333,6 +333,9 @@ def test_reply_drafts():
   content = (ROOT / "bridge-extension/source/content.js").read_text()
   reply = (ROOT / "bridge-extension/source/reply.js").read_text()
   check("reply text reaches helpers over stdin, not argv", "onStarted: write(root.replyRequest({ text: replyEditor.text }))" in panel and "replyEditor.text]" not in panel)
+  check("badge account address reaches settings over stdin, not argv", 'command: ["node", root.settingsBin, "set"]' in panel and "activeBadgeSave.email]" not in panel and "activeBadgeSave.email," not in panel.split("onStarted: write(JSON.stringify({ email: root.activeBadgeSave.email")[0])
+  opener = (ROOT / "bin/mailbox-open-browser-extensions.js").read_text()
+  check("clipboard text is piped to wl-copy, not passed as an argument", "spawnSync('wl-copy', [], { input: text" in opener and "'wl-copy', [text]" not in opener)
   check("reply draft saves while typing and on close", "draftSaveTimer.restart()" in panel and "if (!root.opened) root.saveReplyNow()" in panel)
   check("R opens the reply box and Ctrl+Enter hands it off", 'root.openReply(); event.accepted = true' in panel and "root.sendReplyToBrowser()" in panel)
   check("rows with a saved draft show a draft icon", 'root.hasDraft(modelData) ? "󰏫 " : ""' in panel and "root.refreshDrafts()" in panel)
@@ -476,7 +479,8 @@ def test_settings():
     home = Path(directory)
     env = {**os.environ, "HOME": str(home)}
     helper = ROOT / "bin/mailbox-settings.js"
-    result = run(["node", str(helper), "set", "person@example.com", "a-v!", "green"], env=env)
+    badge = lambda email, initials, color: json.dumps({"email": email, "initials": initials, "color": color}).encode() + b"\n"
+    result = run(["node", str(helper), "set"], env=env, input_data=badge("person@example.com", "a-v!", "green"))
     data = json.loads(result.stdout)
     check("settings accept semantic color role", result.returncode == 0)
     check("settings normalize initials", data["accounts"]["person@example.com"]["initials"] == "AV")
@@ -489,12 +493,19 @@ def test_settings():
     result = run(["node", str(helper), "set-browser", "brave"], env=env)
     check("Brave selection persists without losing unrelated settings", result.returncode == 0 and json.loads(result.stdout).get("bridgeBrowserTarget") == "brave" and json.loads(result.stdout)["maxMessagesPerAccount"] == 200, result.stderr)
     check("unsupported browser selection is rejected", run(["node", str(helper), "set-browser", "firefox"], env=env).returncode == 2)
-    concurrent = [subprocess.Popen(["node", str(helper), "set", f"parallel{i}@example.com", "P", "green"], cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE) for i in range(24)]
-    results = [process.communicate(timeout=30) for process in concurrent]
+    concurrent = [subprocess.Popen(["node", str(helper), "set"], cwd=ROOT, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE) for i in range(24)]
+    results = [process.communicate(badge(f"parallel{i}@example.com", "P", "green"), timeout=30) for i, process in enumerate(concurrent)]
     settings = json.loads((home / ".config/omarchy/mailbox.json").read_text())
     check("parallel settings updates retain all accounts and browser choice", all(process.returncode == 0 for process in concurrent) and all(f"parallel{i}@example.com" in settings["accounts"] for i in range(24)) and settings["bridgeBrowserTarget"] == "brave", str([(process.returncode, stderr.decode(errors="replace")) for process, (_, stderr) in zip(concurrent, results) if process.returncode]))
     check("invalid shortcut is rejected", run(["node", str(helper), "set-shortcut", "7"], env=env).returncode == 2)
-    check("invalid color role is rejected", run(["node", str(helper), "set", "person@example.com", "AV", "invalid"], env=env).returncode == 2)
+    check("invalid color role is rejected", run(["node", str(helper), "set"], env=env, input_data=badge("person@example.com", "AV", "invalid")).returncode == 2)
+    check("badge address is not accepted from process arguments", run(["node", str(helper), "set", "argv@example.com", "AV", "green"], env=env, input_data=b"{}\n").returncode == 2 and "argv@example.com" not in (home / ".config/omarchy/mailbox.json").read_text())
+    start = time.monotonic()
+    stalled = subprocess.Popen(["node", str(helper), "set"], cwd=ROOT, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stalled.stdin.write(b'{"email":'); stalled.stdin.flush()
+    stalled.wait(timeout=15)
+    stalled.stdin.close(); stalled.stdout.close(); stalled.stderr.close()
+    check("badge request on stdin has a deadline", stalled.returncode != 0 and time.monotonic() - start < 10, f"exit={stalled.returncode}")
 
 
 def test_keybind():
@@ -728,7 +739,7 @@ def test_guided_browser_setup():
     fakebin.mkdir()
     for name, body in {
       "xdg-settings": '#!/bin/sh\nprintf "%s\\n" firefox.desktop\n',
-      "wl-copy": '#!/bin/sh\n(sleep 0.35; printf "%s\\n" "$1" > "$CLIP_LOG") &\nsleep 2 &\n',
+      "wl-copy": '#!/bin/sh\ntest "$#" -eq 0 || exit 9\ntext=$(cat)\n(sleep 0.35; printf "%s\\n" "$text" > "$CLIP_LOG") &\nsleep 2 &\n',
       "wl-paste": '#!/bin/sh\ntest -f "$CLIP_LOG" || exit 1\nprintf "%s" "$(cat "$CLIP_LOG")"\n',
       "gio": '#!/bin/sh\nprintf "%s\\n" "$@" > "$GUI_LOG"\nsleep 3\n',
     }.items():

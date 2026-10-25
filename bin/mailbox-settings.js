@@ -4,7 +4,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const os = require('os');
 const path = require('path');
-const { readText, readJson, LIMITS } = require(path.join(__dirname, 'mailbox-bounded-read.js'));
+const { readText, readJson, readStdinJson, LIMITS } = require(path.join(__dirname, 'mailbox-bounded-read.js'));
 const { spawnSync } = require('child_process');
 
 const file = path.join(os.homedir(), '.config', 'omarchy', 'mailbox.json');
@@ -12,10 +12,13 @@ const colors = new Set(['accent', 'urgent', 'foreground', 'muted', 'red', 'yello
 
 // Every writer must reread the settings under the same lock. An atomic rename
 // protects readers, but without serialization concurrent writers lose updates.
-if (process.argv[2] !== 'get' && process.env.MAILBOX_SETTINGS_LOCKED !== '1') {
+// A stdin request is read before taking the lock, so a slow writer never holds it.
+async function runLocked() {
+  const input = process.argv[2] === 'set' ? JSON.stringify(await readStdinJson(LIMITS.small)) + '\n' : undefined;
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const result = spawnSync('flock', ['-x', '-w', '10', `${file}.lock`, process.execPath, __filename, ...process.argv.slice(2)], {
-    stdio: 'inherit',
+    input,
+    stdio: [input === undefined ? 'inherit' : 'pipe', 'inherit', 'inherit'],
     env: { ...process.env, MAILBOX_SETTINGS_LOCKED: '1' }
   });
   if (result.error) console.error(`Mailbox settings lock failed: ${result.error.message}`);
@@ -67,45 +70,54 @@ function initials(value) {
   return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
 }
 
-const [command, email, badge, color] = process.argv.slice(2);
-const data = read();
-data.accounts = data.accounts && typeof data.accounts === 'object' ? data.accounts : {};
-data.maxMessagesPerAccount = Math.max(1, Math.min(Number(data.maxMessagesPerAccount || 50), 200));
-data.shortcutKey = /^[A-Z]$/.test(String(data.shortcutKey || '').toUpperCase()) ? String(data.shortcutKey).toUpperCase() : 'Q';
-data.downloadBodies = data.downloadBodies !== false;
-data.bridgeBrowserTarget = ['chrome', 'brave', 'chromium'].includes(data.bridgeBrowserTarget) ? data.bridgeBrowserTarget : '';
-data.inboxZero = data.inboxZero === true;
-if (command === 'set') {
-  if (!email || !initials(badge) || !colors.has(color)) process.exit(2);
-  data.accounts[email] = { initials: initials(badge), color };
-  write(data);
-} else if (command === 'mark-local-read') {
-  data.localReadAt = Date.now();
-  write(data);
-} else if (command === 'set-limit') {
-  const limit = Math.max(1, Math.min(Number(email), 200));
-  if (!Number.isInteger(limit)) process.exit(2);
-  data.maxMessagesPerAccount = limit;
-  write(data);
-} else if (command === 'set-shortcut') {
-  const key = String(email || '').trim().toUpperCase();
-  if (!/^[A-Z]$/.test(key)) process.exit(2);
-  data.shortcutKey = key;
-  write(data);
-} else if (command === 'set-browser') {
-  if (!['chrome', 'brave', 'chromium'].includes(email)) process.exit(2);
-  data.bridgeBrowserTarget = email;
-  write(data);
-} else if (command === 'set-download-bodies') {
-  if (email !== 'true' && email !== 'false') process.exit(2);
-  data.downloadBodies = email === 'true';
-  write(data);
-  if (!data.downloadBodies) purgeBodies();
-} else if (command === 'set-inbox-zero') {
-  if (email !== 'true' && email !== 'false') process.exit(2);
-  data.inboxZero = email === 'true';
-  write(data);
-} else if (command === 'clear-bodies') {
-  purgeBodies();
+async function main() {
+  const [command, value] = process.argv.slice(2);
+  const data = read();
+  data.accounts = data.accounts && typeof data.accounts === 'object' ? data.accounts : {};
+  data.maxMessagesPerAccount = Math.max(1, Math.min(Number(data.maxMessagesPerAccount || 50), 200));
+  data.shortcutKey = /^[A-Z]$/.test(String(data.shortcutKey || '').toUpperCase()) ? String(data.shortcutKey).toUpperCase() : 'Q';
+  data.downloadBodies = data.downloadBodies !== false;
+  data.bridgeBrowserTarget = ['chrome', 'brave', 'chromium'].includes(data.bridgeBrowserTarget) ? data.bridgeBrowserTarget : '';
+  data.inboxZero = data.inboxZero === true;
+  if (command === 'set') {
+    // The account address arrives on stdin so it never shows in process arguments.
+    const request = await readStdinJson(LIMITS.small);
+    const email = String(request.email || '').trim().slice(0, 320);
+    const color = String(request.color || '');
+    if (!email || !initials(request.initials) || !colors.has(color)) process.exit(2);
+    data.accounts[email] = { initials: initials(request.initials), color };
+    write(data);
+  } else if (command === 'mark-local-read') {
+    data.localReadAt = Date.now();
+    write(data);
+  } else if (command === 'set-limit') {
+    const limit = Math.max(1, Math.min(Number(value), 200));
+    if (!Number.isInteger(limit)) process.exit(2);
+    data.maxMessagesPerAccount = limit;
+    write(data);
+  } else if (command === 'set-shortcut') {
+    const key = String(value || '').trim().toUpperCase();
+    if (!/^[A-Z]$/.test(key)) process.exit(2);
+    data.shortcutKey = key;
+    write(data);
+  } else if (command === 'set-browser') {
+    if (!['chrome', 'brave', 'chromium'].includes(value)) process.exit(2);
+    data.bridgeBrowserTarget = value;
+    write(data);
+  } else if (command === 'set-download-bodies') {
+    if (value !== 'true' && value !== 'false') process.exit(2);
+    data.downloadBodies = value === 'true';
+    write(data);
+    if (!data.downloadBodies) purgeBodies();
+  } else if (command === 'set-inbox-zero') {
+    if (value !== 'true' && value !== 'false') process.exit(2);
+    data.inboxZero = value === 'true';
+    write(data);
+  } else if (command === 'clear-bodies') {
+    purgeBodies();
+  }
+  console.log(JSON.stringify(data));
 }
-console.log(JSON.stringify(data));
+
+const run = process.argv[2] !== 'get' && process.env.MAILBOX_SETTINGS_LOCKED !== '1' ? runLocked : main;
+run().catch(error => { console.error(error.message); process.exit(1); });

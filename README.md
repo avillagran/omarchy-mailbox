@@ -63,6 +63,8 @@ Mailbox reads only `https://mail.google.com/*` and `https://app.hey.com/*` pages
 
 Preferences are stored in `~/.config/omarchy/mailbox.json`. Reply drafts are stored as plain text in `~/.local/state/omarchy/mailbox/drafts/` (user-only permissions) until you discard them. Bounded message previews and optional plain-text conversation bodies are stored in `~/.cache/omarchy/mailbox/` with user-only permissions. Full bodies are captured only after the user opens the conversation in Gmail or HEY; Mailbox never opens hidden conversations to collect them because that could change remote read state. Disable **Download email content** to purge cached bodies.
 
+Reply text and account addresses are passed to Mailbox helpers and to `wl-copy` over standard input, never as command-line arguments, so other local accounts cannot read them from the process list.
+
 The extension permissions are limited to Native Messaging, tabs, scripting, alarms, `https://mail.google.com/*`, and `https://app.hey.com/*`. The plugin and extension execute as unsandboxed local code, like other Omarchy plugins, so review the source and declared capabilities before installation.
 
 ## External dependencies and browser setup

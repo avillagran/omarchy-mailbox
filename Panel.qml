@@ -382,6 +382,10 @@ Panel {
   Process {
     id: badgeSaveProc
     running: false
+    // The account address goes over stdin, never in process arguments.
+    command: ["node", root.settingsBin, "set"]
+    stdinEnabled: true
+    onStarted: write(JSON.stringify({ email: root.activeBadgeSave.email, initials: root.activeBadgeSave.initials, color: root.activeBadgeSave.color }) + "\n")
     onExited: function() { root.finishBadgeSave() }
     stdout: StdioCollector { waitForEnd: true }
     stderr: StdioCollector { waitForEnd: true; onStreamFinished: function() { if (text.trim().length) console.warn("Mailbox badge save failed: " + text.trim()) } }
@@ -645,7 +649,6 @@ Panel {
     if (badgeSaveProc.running || !root.pendingBadgeSave) return
     root.activeBadgeSave = root.pendingBadgeSave
     root.pendingBadgeSave = null
-    badgeSaveProc.command = ["node", root.settingsBin, "set", root.activeBadgeSave.email, root.activeBadgeSave.initials, root.activeBadgeSave.color]
     badgeSaveProc.running = true
   }
   function finishBadgeSave() {

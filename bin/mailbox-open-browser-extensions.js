@@ -19,15 +19,17 @@ function browserLauncher(browser) {
 }
 
 async function copyText(text) {
-  // wl-copy forks a clipboard owner that inherits stdout/stderr. Piped stdio
-  // makes spawnSync wait for that owner until timeout even after wl-copy exits.
-  const copy = spawnSync('wl-copy', [text], { stdio: 'ignore', timeout: 5000 });
+  // The text goes over stdin, never argv: a reply may be private and process
+  // arguments are visible to other local accounts. wl-copy forks a clipboard
+  // owner that inherits stdout/stderr; piped stdout/stderr would make spawnSync
+  // wait for that owner until timeout even after wl-copy exits.
+  const copy = spawnSync('wl-copy', [], { input: text, stdio: ['pipe', 'ignore', 'ignore'], timeout: 5000 });
   if (copy.error || copy.status !== 0) throw new Error(`Could not copy to the clipboard: ${copy.error?.message || `wl-copy exited with status ${copy.status}`}`);
   // The forked clipboard owner may not publish the selection before wl-copy exits.
   // Verify it before telling the user to paste.
   const deadline = Date.now() + 2000;
   do {
-    const pasted = spawnSync('wl-paste', ['--no-newline'], { encoding: 'utf8', timeout: 500 });
+    const pasted = spawnSync('wl-paste', ['--no-newline'], { encoding: 'utf8', timeout: 500, maxBuffer: Buffer.byteLength(text) + 1024 });
     if (pasted.error?.code === 'ENOENT') throw new Error('wl-paste is not installed');
     if (pasted.status === 0 && pasted.stdout === text) return;
     await new Promise(resolve => setTimeout(resolve, 50));
