@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// Records an explicit Gmail account selection or a verified Gmail slot map.
+// Records an explicit Gmail account selection. The address arrives on stdin so it
+// never shows in process arguments.
 const fs = require('fs');
 const crypto = require('crypto');
 const os = require('os');
 const path = require('path');
-const { readText, readJson, LIMITS } = require(path.join(__dirname, 'mailbox-bounded-read.js'));
+const { readStdinJson, LIMITS } = require(path.join(__dirname, 'mailbox-bounded-read.js'));
 const cacheDir = path.join(os.homedir(), '.cache', 'omarchy', 'mailbox');
 // Replace a user-owned file atomically: random temp name, O_EXCL|O_NOFOLLOW, no symlinked target.
 function atomicWrite(file, text, mode = 0o600) {
@@ -26,19 +27,8 @@ function atomicWrite(file, text, mode = 0o600) {
 }
 const valid = value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 fs.mkdirSync(cacheDir, { recursive: true, mode: 0o700 });
-if (process.argv[2] === '--slot') {
-  const index = String(process.argv[3] || '');
-  const email = String(process.argv[4] || '').trim().toLowerCase();
-  if (!/^\d{1,3}$/.test(index) || !valid(email) || email.length > 320) process.exit(2);
-  const file = path.join(cacheDir, 'gmail-slot-accounts.json');
-  let slots = {}; try { slots = readJson(file, LIMITS.small); } catch (_) {}
-  if (!slots || typeof slots !== 'object' || Array.isArray(slots)) slots = {};
-  slots[index] = email;
-  // Gmail exposes one slot per signed-in account; keep the map small and bounded.
-  slots = Object.fromEntries(Object.entries(slots).filter(([key]) => /^\d{1,3}$/.test(key)).slice(-32));
-  atomicWrite(file, JSON.stringify(slots));
-} else {
-  const email = String(process.argv[2] || '').trim().toLowerCase();
+readStdinJson(LIMITS.small).then(request => {
+  const email = String(request.email || '').trim().toLowerCase();
   if (!valid(email) || email.length > 320) process.exit(2);
   atomicWrite(path.join(cacheDir, 'pending-account.json'), JSON.stringify({ email, requestedAt: Date.now() }));
-}
+}).catch(error => { console.error(error.message); process.exit(1); });

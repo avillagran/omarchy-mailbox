@@ -379,6 +379,14 @@ Panel {
   Timer { interval: 120000; repeat: true; running: true; triggeredOnStart: true; onTriggered: { if (!bridgeStatusProc.running) bridgeStatusProc.running = true } }
   Timer { id: bridgeStatusRetry; interval: 3500; repeat: false; onTriggered: { if (!bridgeStatusProc.running) bridgeStatusProc.running = true } }
 
+  property string pendingAccountEmail: ""
+  Process {
+    id: pendingAccountProc
+    // The account address goes over stdin, never in process arguments.
+    command: ["node", root.bridgePendingBin]
+    stdinEnabled: true
+    onStarted: write(JSON.stringify({ email: root.pendingAccountEmail }) + "\n")
+  }
   Process {
     id: badgeSaveProc
     running: false
@@ -489,15 +497,16 @@ Panel {
   }
   function openAccountInbox(account) {
     if (!account) return
-    if (account.inboxUrl) { Quickshell.execDetached(["xdg-open", account.inboxUrl]); return }
-    Quickshell.execDetached(["node", root.bridgePendingBin, account.email])
+    if (root.safeInboxUrl(account)) { Quickshell.execDetached(["xdg-open", root.safeInboxUrl(account)]); return }
+    root.pendingAccountEmail = String(account.email || "")
+    if (!pendingAccountProc.running) pendingAccountProc.running = true
     Quickshell.execDetached(["xdg-open", "https://mail.google.com/mail/?authuser=" + encodeURIComponent(account.email) + "#inbox"])
   }
   function openAccountNotificationSettings(account) {
     if (!account) return
     var target = account.provider === "gmail"
       ? "https://mail.google.com/mail/u/" + root.gmailIndex(account) + "/#settings/general"
-      : (account.inboxUrl || "https://app.hey.com/")
+      : (root.safeInboxUrl(account) || "https://app.hey.com/")
     Quickshell.execDetached(["xdg-open", target])
   }
   function openInbox() {
@@ -506,8 +515,13 @@ Panel {
       root.openAccountInbox(account)
       return
     }
-    if (account && account.inboxUrl) { Quickshell.execDetached(["xdg-open", account.inboxUrl]); return }
+    if (root.safeInboxUrl(account)) { Quickshell.execDetached(["xdg-open", root.safeInboxUrl(account)]); return }
     Quickshell.execDetached(["xdg-open", "https://mail.google.com/mail/u/" + root.gmailIndex(account) + "/#inbox"])
+  }
+  // Checked again right before launch, not only when the bridge cache was parsed.
+  function safeInboxUrl(account) {
+    var url = String(account && account.inboxUrl || "")
+    return /^https:\/\/(?:mail\.google\.com|app\.hey\.com)\//.test(url) ? url : ""
   }
   // Gmail account slots are small integers; anything else falls back to slot 0.
   function gmailIndex(account) {
