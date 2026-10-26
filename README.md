@@ -1,6 +1,6 @@
 # Mailbox
 
-Mailbox is an Omarchy Quickshell bar plugin that shows Gmail and HEY unread counts, account badges, message previews, and locally cached conversation text from the email sessions already open in your browser. It does not use OAuth, request an email password, or keep a separate email session.
+Mailbox is an Omarchy Quickshell bar plugin that shows Gmail and HEY unread counts, account badges, message previews, and locally cached conversation text from your browser sessions. Gmail unread previews are also checked in the background without opening Gmail. It does not use OAuth, request an email password, or keep a separate email session.
 
 ## Preview
 
@@ -13,8 +13,9 @@ The preview uses fictional `.test` accounts and sample messages; it contains no 
 - Automatic Gmail multi-account discovery and HEY account discovery from verified open pages.
 - Rotating unread badge in the Omarchy bar and a combined inbox popup.
 - Direct links that open the selected Gmail or HEY conversation rather than the generic Inbox.
-- Local desktop-notification ingestion while Gmail and HEY tabs are closed.
-- Per-account notification health in Preferences; a warning opens the provider account so blocked browser notifications can be enabled.
+- Gmail background checks every minute using the read-only Atom feed and the existing browser session; no Gmail tab is opened. Feed availability depends on the account and session. The feed returns unread previews (normally up to 20 entries), not full conversation bodies.
+- Local desktop-notification ingestion when the provider delivers a notification, including with tabs closed. This fallback does not itself subscribe to Gmail Push.
+- Per-account reception status in Preferences and warnings in the panel: verified recent background checks, sign-in required, network/timeout errors, account mismatch, stale, or unverified. Notification permission alone never earns a green check. HEY background reception remains unverified.
 - Optional plain-text body cache for conversations the user has already opened; enabled by default and bounded to the configured per-account message limit.
 - Semantic account colors that update immediately with the active Omarchy theme.
 - Local “Mark as read” tranquility state that never modifies email remotely.
@@ -24,7 +25,7 @@ The preview uses fictional `.test` accounts and sample messages; it contains no 
 ## Requirements
 
 - Omarchy Quattro with the plugin-enabled Quickshell shell.
-- Node.js and `xdg-settings` from the standard Omarchy environment.
+- Node.js, Python 3 (standard-library XML parser), and `xdg-settings` from the standard Omarchy environment.
 - Chromium, Brave, or Google Chrome with an existing Gmail or HEY session.
 
 Everything runs as the desktop user. Mailbox never asks for administrator access, never changes system browser policies, and never downloads anything during setup. The browser bridge is a bundled extension plus a per-user Native Messaging host, registered the same way Omarchy registers its own Chromium extensions: a `NativeMessagingHosts` manifest in the browser's user configuration and, for Chromium and Brave, a `--load-extension` entry in the user's own `~/.config/chromium-flags.conf` or `~/.config/brave-flags.conf`.
@@ -59,7 +60,7 @@ After a plugin update, quit and reopen Chromium or Brave; in Chrome click **Relo
 
 ## Local data and privacy
 
-Mailbox reads only `https://mail.google.com/*` and `https://app.hey.com/*` pages through its local extension. The extension sends snapshots to `io.github.avillagran.mailbox`, a Native Messaging host on the same machine. Mailbox does not transmit mail data to an external service. Links opened from the panel are limited to `https://mail.google.com/` and `https://app.hey.com/` addresses, and all email text is rendered as plain text.
+Mailbox reads only `https://mail.google.com/*` and `https://app.hey.com/*` pages through its local extension. The extension sends snapshots to `io.github.avillagran.mailbox`, a Native Messaging host on the same machine. The extension also requests `https://mail.google.com/mail/u/<slot>/feed/atom` in the background with Chrome’s existing session. It never extracts cookies or opens hidden mail tabs. Responses are capped at 256 KiB and seven seconds, redirects are refused, and the account identity must match before mail is cached. Feed checks cannot enable Gmail’s own notification settings and are independent of Gmail desktop notifications. Google documents the feed for Workspace accounts; other accounts may reject it and will show an explicit error. Mailbox does not transmit mail data to an external service. Links opened from the panel are limited to `https://mail.google.com/` and `https://app.hey.com/` addresses, and all email text is rendered as plain text.
 
 Preferences are stored in `~/.config/omarchy/mailbox.json`. Reply drafts are stored as plain text in `~/.local/state/omarchy/mailbox/drafts/` (user-only permissions) until you discard them. Bounded message previews and optional plain-text conversation bodies are stored in `~/.cache/omarchy/mailbox/` with user-only permissions. Full bodies are captured only after the user opens the conversation in Gmail or HEY; Mailbox never opens hidden conversations to collect them because that could change remote read state. Disable **Download email content** to purge cached bodies.
 

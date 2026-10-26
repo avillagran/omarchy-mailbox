@@ -92,7 +92,7 @@ def test_i18n():
   english = catalog["en"]
   keys = set(english) - {""}
   check("i18n has 19 locales", len(catalog) == 19, str(sorted(catalog)))
-  check("i18n has 81 message IDs", len(keys) == 81, str(len(keys)))
+  check("i18n has 92 message IDs", len(keys) == 92, str(len(keys)))
   check("automatic Brave setup is localized", catalog["es"]["Install in Brave"] == "Instalar en Brave")
   check("configured status copy is localizable", "Extension %1 is configured; confirm it in the browser." in english)
   check("guided browser setup is localized", "Set up Chrome" in english and "Quit and reopen %1 to activate Mailbox Local Bridge." in english and "Drag Mailbox onto the page" in english and catalog["es"]["Turn on Developer mode"] == "Activa el Modo de desarrollador")
@@ -216,8 +216,8 @@ def test_marketplace_structure():
   marketplace_manifests = [path for path in ROOT.rglob("manifest.json") if len(path.relative_to(ROOT).parts) <= 2]
   check("marketplace sees exactly one root plugin manifest", marketplace_manifests == [ROOT / "manifest.json"], str(marketplace_manifests))
   check("marketplace plugin ID is namespaced and non-reserved", manifest["id"].startswith("io.github.avillagran.") and not manifest["id"].startswith("omarchy."))
-  check("plugin version advances with the guided Chrome window", manifest["version"] == "0.0.6", manifest["version"])
-  check("extension version advances with reply hand-off", json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())["version"] == "0.0.6")
+  check("plugin version advances with the guided Chrome window", manifest["version"] == "0.0.7", manifest["version"])
+  check("extension version advances with reply hand-off", json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())["version"] == "0.0.7")
   check("README documents Gmail and HEY support", "Gmail and HEY" in readme and "https://app.hey.com/*" in readme)
   check("marketplace root README documents installation", "## Installation" in readme and "omarchy plugin add" in readme)
   check("marketplace root README documents removal", "## Removal" in readme and "omarchy plugin remove" in readme)
@@ -242,7 +242,7 @@ def test_panel_badge_propagation():
   check("keyboard opens desktop notification rows", "if (email) root.openEmail(email)" in source)
   check("preferences show per-account notification health first", "notificationHealthy" in source and 'text: parent.account.notificationHealthy ? "✓" : "!"' in source)
   check("notification warning opens provider settings", "openAccountNotificationSettings" in source and "#settings/general" in source)
-  check("notification warning explains itself on hover", "PanelToolTip" in source and 'root.t("Enable notifications for this account.")' in source and "notificationStatusMouse.containsMouse" in source)
+  check("notification warning explains itself on hover", "PanelToolTip" in source and 'root.receptionDetail(parent.account)' in source and "notificationStatusMouse.containsMouse" in source)
   check("sync status stays in fixed header space", "id: headerSyncStatus" in source and "opacity: root.syncing ? 1 : 0" in source and source.index("id: headerSyncStatus") < source.index('iconText: "󰑐"'))
   check("sync status does not shift the message list", 'Rectangle {\n            visible: root.syncing' not in source)
   check("row date derives from the resolved timestamp, not the capture-time label", "root.displayDate(modelData)" in source and '" · " + modelData.date' not in source and "toDateString() === now.toDateString()" in source)
@@ -346,7 +346,7 @@ def test_reply_drafts():
   check("extension reloads itself after a plugin update", 'chrome.runtime.getURL("manifest.json")' in background and "chrome.runtime.reload()" in background)
   check("reply errors name a stale extension instead of a missing one", "is still running Mailbox Local Bridge" in (ROOT / "bin/mailbox-force-refresh.js").read_text())
   bar = (ROOT / "BarWidget.qml").read_text()
-  check("outdated extension shows ! in the bar", 'if (root.bridgeNeedsUpdate) return "! " + root.accountLabel()' in bar and "panelLoader.item.bridgeNeedsUpdate" in bar)
+  check("outdated extension shows ! in the bar", 'if (root.bridgeNeedsUpdate || root.receptionNeedsAttention) return "! " + root.accountLabel()' in bar and "panelLoader.item.bridgeNeedsUpdate" in bar)
   check("header ! opens preferences", "id: bridgeWarningButton" in panel and "visible: root.bridgeNeedsUpdate" in panel and "onClicked: root.showSettings()" in panel[panel.index("id: bridgeWarningButton"):][:600])
   check("extension status is rechecked while the panel is closed", "interval: 120000; repeat: true; running: true; triggeredOnStart: true" in panel)
   check("reply is filled in Gmail but never sent", "mailbox-compose-reply" in content and "insertText" in content and not re.search(r"(?i)send", content[content.index("async function composeReply"):content.index("chrome.runtime.onMessage.addListener((message, sender, sendResponse)")]) and "never presses Send" in reply)
@@ -469,7 +469,7 @@ def test_native_host():
     rendered = json.loads(result.stdout)
     rendered_hey = next((account for account in rendered["accounts"] if account.get("provider") == "hey"), None)
     check("HEY account reaches the widget model", rendered_hey and rendered_hey.get("label") == "andres@example.com" and rendered_hey.get("inboxUrl") == "https://app.hey.com/", str(rendered.get("accounts")))
-    check("notification health reaches the widget model", rendered_hey and rendered_hey.get("notificationPermission") == "granted" and rendered_hey.get("notificationHealthy") is True, str(rendered_hey))
+    check("permission alone never certifies HEY reception", rendered_hey and rendered_hey.get("notificationPermission") == "granted" and rendered_hey.get("notificationHealthy") is False, str(rendered_hey))
     check("HEY direct topic reaches the widget model", any(email.get("url") == "https://app.hey.com/topics/12345" for email in rendered["emails"]))
     rendered_accounts = [email.get("account") for email in rendered["emails"]]
     check("ALL view interleaves providers by exact date", rendered_accounts[0] == "hey:andres@example.com" and "real@example.com" in rendered_accounts[1:], str(rendered_accounts))
@@ -645,7 +645,7 @@ def test_browser_installer():
       EXTENSION_ID: {"path": str(ROOT / "bridge-extension/source"), "location": 8}
     }}}))
     chromium_loaded = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js"), "--chromium"], env=status_env).stdout)
-    check("command-line Chromium extension reports active without a cached manifest or state field", chromium_loaded["installed"] and chromium_loaded["upToDate"] and chromium_loaded["loadedVersion"] == "0.0.6", str(chromium_loaded))
+    check("command-line Chromium extension reports active without a cached manifest or state field", chromium_loaded["installed"] and chromium_loaded["upToDate"] and chromium_loaded["loadedVersion"] == "0.0.7", str(chromium_loaded))
     (chromium_profile / "Preferences").write_text(json.dumps({"extensions": {"settings": {
       EXTENSION_ID: {"path": str(ROOT / "bridge-extension/source"), "location": 8, "state": 1}
     }}}))
@@ -945,6 +945,9 @@ process.stdout.write(JSON.stringify(launched));
 
 
 def main():
+  for command in (["python3", str(ROOT / "tests/test_feed.py")], ["node", str(ROOT / "tests/background-feed.cjs")]):
+    result = run(command)
+    check("background reception behavioral checks", result.returncode == 0, result.stdout + result.stderr)
   test_safe_paste_and_account_launch()
   test_guided_browser_setup()
   test_refresh_requires_installed_extension()

@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const os = require('os');
 const path = require('path');
 const { readJson, LIMITS } = require(path.join(__dirname, 'mailbox-bounded-read.js'));
+const { receptionStatus } = require(path.join(__dirname, 'mailbox-reception.js'));
 
 const SETTINGS_FILE = path.join(os.homedir(), '.config', 'omarchy', 'mailbox.json');
 function configuredMessageLimit() {
@@ -145,7 +146,7 @@ function readBridge() {
       const preference = prefs[item.account] || {};
       const isLive = Date.now() - Number(item.capturedAt || 0) <= BRIDGE_MAX_AGE_MS;
       const notificationPermission = ['granted', 'denied', 'default', 'unsupported'].includes(item.notificationPermission) ? item.notificationPermission : 'unknown';
-      return { email: item.account, label: String(item.label || item.account), provider: item.provider === 'hey' ? 'hey' : 'gmail', inboxUrl: /^https:\/\/(?:mail\.google\.com|app\.hey\.com)\//.test(String(item.inboxUrl || '')) ? String(item.inboxUrl) : '', unread: Number(item.unread || 0), initials: String(preference.initials || (item.provider === 'hey' ? 'HEY' : defaultInitials(item.account))).slice(0, 3), color: ['accent', 'urgent', 'foreground', 'muted', 'red', 'yellow', 'orange', 'green', 'cyan', 'blue', 'magenta', 'brown'].includes(preference.color) ? preference.color : 'accent', index: String(item.index || (item.provider === 'hey' ? '' : '0')), bridge: true, connectionState: isLive ? 'live' : 'closed', lastCapturedAt: Number(item.capturedAt || 0), notificationPermission, notificationHealthy: notificationPermission === 'granted' };
+      return { email: item.account, label: String(item.label || item.account), provider: item.provider === 'hey' ? 'hey' : 'gmail', inboxUrl: /^https:\/\/(?:mail\.google\.com|app\.hey\.com)\//.test(String(item.inboxUrl || '')) ? String(item.inboxUrl) : '', unread: Number(item.unread || 0), initials: String(preference.initials || (item.provider === 'hey' ? 'HEY' : defaultInitials(item.account))).slice(0, 3), color: ['accent', 'urgent', 'foreground', 'muted', 'red', 'yellow', 'orange', 'green', 'cyan', 'blue', 'magenta', 'brown'].includes(preference.color) ? preference.color : 'accent', index: String(item.index || (item.provider === 'hey' ? '' : '0')), bridge: true, connectionState: isLive ? 'live' : 'closed', lastCapturedAt: Number(item.capturedAt || 0), notificationPermission, ...receptionStatus(item) };
     });
     const emails = stored.flatMap(item => (Array.isArray(item.emails) ? item.emails : (Array.isArray(item.messages) ? item.messages : [])).slice(0, MAX_MESSAGES).map(email => {
       const preference = prefs[item.account] || {};
@@ -155,6 +156,7 @@ function readBridge() {
   } catch (_) { return null; }
 }
 function applyLocalRead(result) {
+  result = { ...result, accounts: (result.accounts || []).map(account => ({ ...account, ...receptionStatus(account) })) };
   let markedAt = 0;
   try { markedAt = Number(readJson(SETTINGS_FILE, LIMITS.settings).localReadAt || 0); } catch (_) {}
   // Messages the provider reports as opened stay listed, just not highlighted.

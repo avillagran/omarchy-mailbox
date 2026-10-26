@@ -5,6 +5,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const os = require('os');
 const path = require('path');
+const { spawnSync } = require('child_process');
 const { readJson, LIMITS } = require(path.join(__dirname, 'mailbox-bounded-read.js'));
 
 const CACHE_DIR = path.join(os.homedir(), '.cache', 'omarchy', 'mailbox');
@@ -205,6 +206,39 @@ function mergeThreadBody(data, message, prefs) {
 
 function handle(message) {
   try {
+    if (message.type === 'mailbox-feed-targets') {
+      const data = load();
+      const targets = Object.values(data.accounts || {}).filter(account => account.provider !== 'hey' && account.account && /^\d{1,3}$/.test(String(account.index)))
+        .slice(0, MAX_ACCOUNTS).map(account => ({ account: account.account, index: String(account.index) }));
+      send({ ok: true, targets });
+      return;
+    }
+    if (message.type === 'mailbox-feed-result') {
+      const data = load();
+      const account = data.accounts[clip(message.account, 320)];
+      if (!account || account.provider === 'hey' || String(account.index) !== String(message.index)) throw new Error('Unknown feed account');
+      let state = ['network-error', 'timeout', 'signed-out', 'unavailable', 'too-large'].includes(message.state) ? message.state : 'invalid-feed';
+      if (message.state === 'ok' && typeof message.xml === 'string' && Buffer.byteLength(message.xml) <= 256 * 1024) {
+        const parsed = spawnSync('python3', ['-I', path.join(__dirname, 'mailbox-feed-parse.py')], {
+          input: message.xml, encoding: 'utf8', timeout: 2000, maxBuffer: 1024 * 1024
+        });
+        if (parsed.status === 0 && !parsed.error) {
+          const feed = JSON.parse(parsed.stdout);
+          if (feed.account === account.account.toLowerCase()) {
+            const index = String(account.index);
+            const emails = feed.emails.map(row => ({ ...row, dateTimestamp: Date.parse(row.date) || 0,
+              url: `https://mail.google.com/mail/u/${index}/#inbox/${row.threadId}` }));
+            mergeSnapshot(data, { account: account.account, provider: 'gmail', index, unread: feed.unread, emails }, settings());
+            state = 'ok';
+          } else state = 'account-mismatch';
+        }
+      }
+      const current = data.accounts[account.account];
+      current.reception = { state, checkedAt: Date.now(), lastSuccessAt: state === 'ok' ? Date.now() : Number(current.reception?.lastSuccessAt || 0), transport: 'gmail-feed' };
+      save(data);
+      send({ ok: true, state });
+      return;
+    }
     if (message.type === 'bridge-health' || message.type === 'bridge-diagnostics') {
       const file = path.join(CACHE_DIR, message.type === 'bridge-health' ? 'bridge-health.json' : 'bridge-diagnostics.json');
       if (Buffer.byteLength(JSON.stringify(message)) > MAX_REPORT_BYTES) throw new Error('Bridge report too large');

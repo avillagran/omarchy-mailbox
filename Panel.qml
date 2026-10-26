@@ -108,6 +108,28 @@ Panel {
     for (var i = 0; i < root.accounts.length; i++) last = Math.max(last, Number(root.accounts[i].lastCapturedAt || 0))
     return last > 0 ? root.t("Extension not installed") + " · 󰑐 " + root.displayDate({ dateSort: last }) : ""
   }
+  function receptionDetail(account) {
+    var messages = {
+      "ok": "Background reception verified.",
+      "signed-out": "Background reception needs sign-in or was denied by Gmail.",
+      "account-mismatch": "Gmail returned a different account. Reception is blocked.",
+      "network-error": "Background reception failed: network error.",
+      "timeout": "Background reception failed: request timed out.",
+      "unavailable": "Gmail's background feed is unavailable for this account.",
+      "too-large": "Gmail's background feed exceeded the size limit.",
+      "invalid-feed": "Gmail's background response could not be verified.",
+      "stale": "Background reception stopped responding.",
+      "unverified": "Background reception has not been verified."
+    }
+    var detail = root.t(messages[account.receptionState] || messages.unverified)
+    if (account.receptionCheckedAt > 0) detail += " · " + root.t("Last check") + ": " + new Date(account.receptionCheckedAt).toLocaleTimeString(Qt.locale(root.language), Locale.ShortFormat)
+    return detail
+  }
+  function receptionWarnings() {
+    return root.accounts.filter(function(account) { return !account.notificationHealthy }).map(function(account) {
+      return account.initials + ": " + root.receptionDetail(account)
+    }).join("\n")
+  }
   function hasDraft(email) { return !!email && !!email.threadId && root.draftKeys[(email.account || "") + "\u0000" + email.threadId] === true }
   function refreshDrafts() { if (!draftListProc.running) draftListProc.running = true }
   function browserFlag() { return root.bridgeBrowserTarget === "chromium" ? "--chromium" : root.bridgeBrowserTarget === "brave" ? "--brave" : root.bridgeBrowserTarget === "chrome" ? "--chrome" : "" }
@@ -1136,14 +1158,14 @@ Panel {
                   MouseArea {
                     id: notificationStatusMouse
                     anchors.fill: parent
-                    enabled: !parent.account.notificationHealthy
+                    enabled: true
                     hoverEnabled: true
-                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                    onClicked: root.openAccountNotificationSettings(parent.account)
+                    cursorShape: parent.account.notificationPermission === "denied" ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    onClicked: { if (parent.account.notificationPermission === "denied") root.openAccountNotificationSettings(parent.account) }
                   }
                   PanelToolTip {
-                    visible: notificationStatusMouse.containsMouse && !parent.account.notificationHealthy
-                    text: root.t("Enable notifications for this account.")
+                    visible: notificationStatusMouse.containsMouse
+                    text: root.receptionDetail(parent.account)
                     fontFamily: Style.font.family
                   }
                 }
@@ -1189,9 +1211,9 @@ Panel {
             visible: text.length > 0
             width: parent.width - Style.space(16)
             anchors.horizontalCenter: parent.horizontalCenter
-            text: [root.staleNotice(), root.fetchMessage].filter(function(part) { return part.length > 0 }).join("\n")
+            text: [root.staleNotice(), root.receptionWarnings(), root.fetchMessage].filter(function(part) { return part.length > 0 }).join("\n")
             wrapMode: Text.WordWrap
-            color: root.fetchStatus === "login-required" || root.fetchStatus === "unavailable" || root.staleNotice().length > 0 ? Color.urgent : Color.popups.text
+            color: root.fetchStatus === "login-required" || root.fetchStatus === "unavailable" || root.staleNotice().length > 0 || root.receptionWarnings().length > 0 ? Color.urgent : Color.popups.text
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
           }
