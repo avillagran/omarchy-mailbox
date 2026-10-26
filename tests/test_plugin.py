@@ -894,7 +894,58 @@ def test_bounded_inputs():
     check("native host drops non-provider row URLs", stored["url"] == "", stored["url"])
 
 
+def test_safe_paste_and_account_launch():
+  with tempfile.TemporaryDirectory() as directory:
+    fake = Path(directory) / "wl-paste"
+    fake.write_text("#!/usr/bin/env python3\nimport os, sys, time\nmode = os.environ['PASTE_CASE']\nif mode == 'hang': time.sleep(30)\nelif mode == 'overflow': sys.stdout.buffer.write(b'x' * 65537)\nelif mode == 'exact': sys.stdout.buffer.write(b'x' * 65536)\nelif mode == 'invalid': sys.stdout.buffer.write(b'\\xff')\nelif mode == 'error': sys.stdout.write('partial'); sys.exit(1)\nelse: sys.stdout.write('Hola 😀\\nsegunda línea')\n")
+    fake.chmod(0o755)
+    for case in ['normal', 'exact', 'overflow', 'invalid', 'error', 'hang']:
+      start = time.monotonic()
+      result = subprocess.run(['node', str(ROOT / 'bin/mailbox-paste.js')], env={**os.environ, 'PATH': directory + os.pathsep + os.environ['PATH'], 'PASTE_CASE': case}, capture_output=True, timeout=4)
+      elapsed = time.monotonic() - start
+      if case in ['normal', 'exact']:
+        expected = 'x' * 65536 if case == 'exact' else 'Hola 😀\nsegunda línea'
+        check('bounded paste accepts ' + case, result.returncode == 0 and json.loads(result.stdout)['text'] == expected)
+      else:
+        check('bounded paste rejects ' + case, result.returncode != 0 and not result.stdout)
+      check('bounded paste deadline ' + case, elapsed < 3, str(elapsed))
+  panel = (ROOT / 'Panel.qml').read_text()
+  functions = []
+  for name in ['openAccountInbox', 'safeInboxUrl']:
+    functions.append(re.search(r'  function ' + name + r'\(account\) \{.*?\n  \}', panel, re.S).group(0))
+  script = """
+const launched = [];
+const Quickshell = { execDetached: argv => launched.push(argv) };
+const pendingAccountProc = { running: false };
+const root = {};
+""" + '\n'.join(functions) + """
+root.safeInboxUrl = safeInboxUrl;
+for (const account of [
+  {email: 'private@example.com', index: '2'},
+  {email: 'private@example.com'},
+  {email: 'private@example.com', index: '2?authuser=private@example.com'},
+  {email: 'private@example.com', inboxUrl: 'https://mail.google.com/mail/?authuser=private@example.com'},
+  {email: 'private@example.com', inboxUrl: 'https://mail.google.com/mail/u/3/#inbox'},
+  {provider: 'hey', inboxUrl: 'https://app.hey.com/'}
+]) openAccountInbox(account);
+process.stdout.write(JSON.stringify(launched));
+"""
+  result = run(['node', '-e', script])
+  urls = [argv[1] for argv in json.loads(result.stdout)]
+  check('account launches never expose an email or query', all('@' not in url and '?' not in url for url in urls))
+  check('known Gmail account preserves numeric slot', urls[0] == 'https://mail.google.com/mail/u/2/#inbox' and urls[4] == 'https://mail.google.com/mail/u/3/#inbox')
+  check('unknown Gmail account does not guess a slot', all(url == 'https://mail.google.com/mail/#inbox' for url in urls[1:4]))
+  check('HEY account keeps its inbox', urls[5] == 'https://app.hey.com/')
+  runner = Path('/usr/lib/qt6/bin/qmltestrunner')
+  if runner.exists():
+    result = run([str(runner), '-input', str(ROOT / 'tests/qml')], env={**os.environ, 'QT_QPA_PLATFORM': 'offscreen'})
+    check('real Qt keyboard interaction suite', result.returncode == 0, result.stdout + result.stderr)
+  else:
+    skip('real Qt keyboard interaction suite', 'qmltestrunner is not installed')
+
+
 def main():
+  test_safe_paste_and_account_launch()
   test_guided_browser_setup()
   test_refresh_requires_installed_extension()
   test_chrome_status_detection()

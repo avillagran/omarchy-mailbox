@@ -120,18 +120,44 @@ Panel {
   function openReply() {
     var email = root.selectedEmail()
     if (!email || email.notification || !email.threadId) return
+    root.replyGeneration++
     root.replyEmail = email
     root.replyState = ""
     root.replyDirty = false
     replyEditor.text = ""
+    replyEditor.resetHistory()
     root.replyOpen = true
     draftLoadProc.running = true
     Qt.callLater(function() { replyEditor.forceActiveFocus() })
   }
+  property int replyGeneration: 0
+  property var pasteContext: null
+  function pasteReply() {
+    if (!root.replyOpen || pasteReplyProc.running) return
+    root.pasteContext = { generation: root.replyGeneration, text: replyEditor.text, start: replyEditor.selectionStart, end: replyEditor.selectionEnd }
+    pasteReplyProc.running = true
+  }
+  Process {
+    id: pasteReplyProc
+    command: ["node", Qt.resolvedUrl("bin/mailbox-paste.js").toString().replace("file://", "")]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var context = root.pasteContext
+        if (!context || !root.replyOpen || context.generation !== root.replyGeneration || context.text !== replyEditor.text) return
+        try {
+          var value = JSON.parse(text)
+          if (typeof value.text !== "string") return
+          replyEditor.select(context.start, context.end)
+          replyEditor.replaceSelection(value.text)
+        } catch (_) {}
+      }
+    }
+  }
   function saveReplyNow() { if (!root.replyOpen || !root.replyDirty) return; if (draftSaveProc.running) { draftSaveTimer.restart(); return } root.replyDirty = false; root.replyState = root.t("Saving draft…"); draftSaveProc.running = true }
-  function closeReply() { root.saveReplyNow(); root.replyOpen = false; Qt.callLater(function() { keyFront.forceActiveFocus() }) }
+  function closeReply() { root.replyGeneration++; root.saveReplyNow(); root.replyOpen = false; Qt.callLater(function() { keyFront.forceActiveFocus() }) }
   function sendReplyToBrowser() { if (!root.replyOpen || draftOpenProc.running) return; root.replyDirty = false; root.replyState = root.t("Opening the reply…"); draftOpenProc.command = ["node", root.draftsBin, "open"].concat(root.browserFlag() ? [root.browserFlag()] : []); draftOpenProc.running = true }
-  function discardReply() { draftDiscardProc.running = true; root.replyDirty = false; replyEditor.text = ""; root.replyOpen = false; Qt.callLater(function() { keyFront.forceActiveFocus() }) }
+  function discardReply() { root.replyGeneration++; draftDiscardProc.running = true; root.replyDirty = false; replyEditor.text = ""; root.replyOpen = false; Qt.callLater(function() { keyFront.forceActiveFocus() }) }
   function tf(key, values) { var result = root.t(key); for (var i = 0; i < values.length; i++) result = result.replace("%" + (i + 1), values[i]); return result }
   function isExpanded(index, email) { return !!email && !email.notification && (root.expandAll || root.expandedEmailIndex === index) }
   function moveEmail(delta) {
@@ -347,7 +373,7 @@ Panel {
       onStreamFinished: {
         try {
           var draft = JSON.parse(text)
-          if (draft.text && replyEditor.text.length === 0) { replyEditor.text = draft.text; root.replyDirty = false; root.replyState = root.tf("Draft saved %1", [root.displayDate({ dateSort: draft.savedAt })]) }
+          if (draft.text && replyEditor.text.length === 0) { replyEditor.text = draft.text; replyEditor.resetHistory(); root.replyDirty = false; root.replyState = root.tf("Draft saved %1", [root.displayDate({ dateSort: draft.savedAt })]) }
         } catch (_) {}
       }
     }
@@ -500,7 +526,9 @@ Panel {
     if (root.safeInboxUrl(account)) { Quickshell.execDetached(["xdg-open", root.safeInboxUrl(account)]); return }
     root.pendingAccountEmail = String(account.email || "")
     if (!pendingAccountProc.running) pendingAccountProc.running = true
-    Quickshell.execDetached(["xdg-open", "https://mail.google.com/mail/?authuser=" + encodeURIComponent(account.email) + "#inbox"])
+    var slot = String(account.index === undefined || account.index === null ? "" : account.index)
+    var target = /^[0-9]{1,3}$/.test(slot) ? "https://mail.google.com/mail/u/" + slot + "/#inbox" : "https://mail.google.com/mail/#inbox"
+    Quickshell.execDetached(["xdg-open", target])
   }
   function openAccountNotificationSettings(account) {
     if (!account) return
@@ -521,7 +549,7 @@ Panel {
   // Checked again right before launch, not only when the bridge cache was parsed.
   function safeInboxUrl(account) {
     var url = String(account && account.inboxUrl || "")
-    return /^https:\/\/(?:mail\.google\.com|app\.hey\.com)\//.test(url) ? url : ""
+    return /^https:\/\/mail\.google\.com\/mail\/u\/[0-9]{1,3}\/(?:#inbox)?$/.test(url) || /^https:\/\/app\.hey\.com\/(?:feed\/)?$/.test(url) ? url : ""
   }
   // Gmail account slots are small integers; anything else falls back to slot 0.
   function gmailIndex(account) {
@@ -1022,13 +1050,13 @@ Panel {
               spacing: Style.space(8)
               Text { textFormat: Text.PlainText; text: root.t("openClosePanel"); color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
               Text { textFormat: Text.PlainText; text: "SUPER+SHIFT+"; color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
-              TextInput {
+              KeyboardInput {
                 id: shortcutKeyInput
                 width: Style.space(32); height: Style.space(28)
                 text: root.shortcutKey
-                maximumLength: 1; selectByMouse: true
+                maximumLength: 1; characterLimit: 1; allowedCharacters: "[A-Za-z]"
                 color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.body
-                onTextEdited: { if (text.length === 1) root.saveShortcut(text) }
+                onKeyboardEdited: { if (text.length === 1) root.saveShortcut(text) }
               }
               Text { textFormat: Text.PlainText; text: root.shortcutState; color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
             }
@@ -1048,8 +1076,9 @@ Panel {
               width: parent.width
               spacing: Style.space(8)
               Text { textFormat: Text.PlainText; text: root.t("storedMessagesPerAccount"); color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
-              TextInput {
+              KeyboardInput {
                 id: messageLimitInput
+                characterLimit: 3; allowedCharacters: "[0-9]"
                 width: Style.space(52); height: Style.space(28)
                 text: String(root.maxMessagesPerAccount)
                 color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.body
@@ -1125,7 +1154,7 @@ Panel {
                   color: root.badgeColor(parent.account.color)
                   Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: parent.parent.account.initials; color: Color.background; font.family: Style.font.family; font.pixelSize: Style.font.caption; font.bold: true }
                 }
-                TextInput {
+                KeyboardInput {
                   id: initialsInput
                   width: Style.space(52)
                   height: Style.space(28)
@@ -1222,10 +1251,12 @@ Panel {
                 radius: Style.cornerRadius
                 color: Qt.rgba(Color.background.r, Color.background.g, Color.background.b, 0.6)
                 border.color: replyEditor.activeFocus ? Color.accent : Qt.rgba(Color.muted.r, Color.muted.g, Color.muted.b, 0.5)
-                TextEdit {
+                KeyboardEditor {
                   id: replyEditor
                   anchors.fill: parent
                   anchors.margins: Style.space(8)
+                  readOnly: true
+                  activeFocusOnPress: true
                   textFormat: TextEdit.PlainText
                   wrapMode: TextEdit.Wrap
                   selectByMouse: true
@@ -1234,10 +1265,9 @@ Panel {
                   font.family: Style.font.family
                   font.pixelSize: Style.font.body
                   onTextChanged: { if (activeFocus || root.replyOpen) { root.replyDirty = true; draftSaveTimer.restart() } }
-                  Keys.onPressed: function(event) {
-                    if (event.key === Qt.Key_Escape) { root.closeReply(); event.accepted = true }
-                    else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && (event.modifiers & Qt.ControlModifier)) { root.sendReplyToBrowser(); event.accepted = true }
-                  }
+                  onCloseRequested: root.closeReply()
+                  onSubmitRequested: root.sendReplyToBrowser()
+                  onPasteRequested: root.pasteReply()
                 }
                 Text { textFormat: Text.PlainText; anchors.left: parent.left; anchors.top: parent.top; anchors.margins: Style.space(8); visible: replyEditor.text.length === 0; text: root.t("Write your reply…"); color: Color.muted; font.family: Style.font.family; font.pixelSize: Style.font.body }
               }
