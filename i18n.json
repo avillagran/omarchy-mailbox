@@ -95,7 +95,13 @@
     "Gmail's background response could not be verified.": "Gmail's background response could not be verified.",
     "Background reception stopped responding.": "Background reception stopped responding.",
     "Background reception has not been verified.": "Background reception has not been verified.",
-    "Last check": "Last check"
+    "Last check": "Last check",
+    "Remove account from Mailbox": "Remove account from Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.",
+    "Remove account": "Remove account",
+    "Cancel": "Cancel",
+    "Restore removed accounts (%1)": "Restore removed accounts (%1)",
+    "Could not update accounts.": "Could not update accounts."
   },
   "es": {
     "": {
@@ -193,7 +199,13 @@
     "Gmail's background response could not be verified.": "No se pudo verificar la respuesta de Gmail en segundo plano.",
     "Background reception stopped responding.": "La recepción en segundo plano dejó de responder.",
     "Background reception has not been verified.": "La recepción en segundo plano no se ha verificado.",
-    "Last check": "Última comprobación"
+    "Last check": "Última comprobación",
+    "Remove account from Mailbox": "Eliminar cuenta de Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "¿Eliminar %1 de Mailbox? Se conservarán los borradores. Esto no modifica tu cuenta de correo.",
+    "Remove account": "Eliminar cuenta",
+    "Cancel": "Cancelar",
+    "Restore removed accounts (%1)": "Restaurar cuentas eliminadas (%1)",
+    "Could not update accounts.": "No se pudieron actualizar las cuentas."
   },
   "pt": {
     "": {
@@ -291,7 +303,13 @@
     "Gmail's background response could not be verified.": "Gmail's background response could not be verified.",
     "Background reception stopped responding.": "Background reception stopped responding.",
     "Background reception has not been verified.": "Background reception has not been verified.",
-    "Last check": "Last check"
+    "Last check": "Last check",
+    "Remove account from Mailbox": "Remove account from Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.",
+    "Remove account": "Remove account",
+    "Cancel": "Cancel",
+    "Restore removed accounts (%1)": "Restore removed accounts (%1)",
+    "Could not update accounts.": "Could not update accounts."
   },
   "fr": {
     "": {
@@ -389,7 +407,13 @@
     "Gmail's background response could not be verified.": "Gmail's background response could not be verified.",
     "Background reception stopped responding.": "Background reception stopped responding.",
     "Background reception has not been verified.": "Background reception has not been verified.",
-    "Last check": "Last check"
+    "Last check": "Last check",
+    "Remove account from Mailbox": "Remove account from Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.",
+    "Remove account": "Remove account",
+    "Cancel": "Cancel",
+    "Restore removed accounts (%1)": "Restore removed accounts (%1)",
+    "Could not update accounts.": "Could not update accounts."
   },
   "de": {
     "": {
@@ -487,7 +511,13 @@
     "Gmail's background response could not be verified.": "Gmail's background response could not be verified.",
     "Background reception stopped responding.": "Background reception stopped responding.",
     "Background reception has not been verified.": "Background reception has not been verified.",
-    "Last check": "Last check"
+    "Last check": "Last check",
+    "Remove account from Mailbox": "Remove account from Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.",
+    "Remove account": "Remove account",
+    "Cancel": "Cancel",
+    "Restore removed accounts (%1)": "Restore removed accounts (%1)",
+    "Could not update accounts.": "Could not update accounts."
   },
   "it": {
     "": {
@@ -585,7 +615,13 @@
     "Gmail's background response could not be verified.": "Gmail's background response could not be verified.",
     "Background reception stopped responding.": "Background reception stopped responding.",
     "Background reception has not been verified.": "Background reception has not been verified.",
-    "Last check": "Last check"
+    "Last check": "Last check",
+    "Remove account from Mailbox": "Remove account from Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.",
+    "Remove account": "Remove account",
+    "Cancel": "Cancel",
+    "Restore removed accounts (%1)": "Restore removed accounts (%1)",
+    "Could not update accounts.": "Could not update accounts."
   },
   "nl": {
     "": {
@@ -683,7 +719,13 @@
     "Gmail's background response could not be verified.": "Gmail's background response could not be verified.",
     "Background reception stopped responding.": "Background reception stopped responding.",
     "Background reception has not been verified.": "Background reception has not been verified.",
-    "Last check": "Last check"
+    "Last check": "Last check",
+    "Remove account from Mailbox": "Remove account from Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.",
+    "Remove account": "Remove account",
+    "Cancel": "Cancel",
+    "Restore removed accounts (%1)": "Restore removed accounts (%1)",
+    "Could not update accounts.": "Could not update accounts."
   },
   "pl": {
     "": {
@@ -781,7 +823,13 @@
     "Gmail's background response could not be verified.": "Gmail's background response could not be verified.",
     "Background reception stopped responding.": "Background reception stopped responding.",
     "Background reception has not been verified.": "Background reception has not been verified.",
-    "Last check": "Last check"
+    "Last check": "Last check",
+    "Remove account from Mailbox": "Remove account from Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.",
+    "Remove account": "Remove account",
+    "Cancel": "Cancel",
+    "Restore removed accounts (%1)": "Restore removed accounts (%1)",
+    "Could not update accounts.": "Could not update accounts."
   },
   "ru": {
     "": {
@@ -879,7 +927,13 @@
     "Gmail's background response could not be verified.": "Gmail's background response could not be verified.",
     "Background reception stopped responding.": "Background reception stopped responding.",
     "Background reception has not been verified.": "Background reception has not been verified.",
-    "Last check": "Last check"
+    "Last check": "Last check",
+    "Remove account from Mailbox": "Remove account from Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.",
+    "Remove account": "Remove account",
+    "Cancel": "Cancel",
+    "Restore removed accounts (%1)": "Restore removed accounts (%1)",
+    "Could not update accounts.": "Could not update accounts."
   },
   "ja": {
     "": {
@@ -977,7 +1031,13 @@
     "Gmail's background response could not be verified.": "Gmail's background response could not be verified.",
     "Background reception stopped responding.": "Background reception stopped responding.",
     "Background reception has not been verified.": "Background reception has not been verified.",
-    "Last check": "Last check"
+    "Last check": "Last check",
+    "Remove account from Mailbox": "Remove account from Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.",
+    "Remove account": "Remove account",
+    "Cancel": "Cancel",
+    "Restore removed accounts (%1)": "Restore removed accounts (%1)",
+    "Could not update accounts.": "Could not update accounts."
   },
   "ko": {
     "": {
@@ -1075,7 +1135,13 @@
     "Gmail's background response could not be verified.": "Gmail's background response could not be verified.",
     "Background reception stopped responding.": "Background reception stopped responding.",
     "Background reception has not been verified.": "Background reception has not been verified.",
-    "Last check": "Last check"
+    "Last check": "Last check",
+    "Remove account from Mailbox": "Remove account from Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.",
+    "Remove account": "Remove account",
+    "Cancel": "Cancel",
+    "Restore removed accounts (%1)": "Restore removed accounts (%1)",
+    "Could not update accounts.": "Could not update accounts."
   },
   "zh": {
     "": {
@@ -1173,7 +1239,13 @@
     "Gmail's background response could not be verified.": "Gmail's background response could not be verified.",
     "Background reception stopped responding.": "Background reception stopped responding.",
     "Background reception has not been verified.": "Background reception has not been verified.",
-    "Last check": "Last check"
+    "Last check": "Last check",
+    "Remove account from Mailbox": "Remove account from Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.",
+    "Remove account": "Remove account",
+    "Cancel": "Cancel",
+    "Restore removed accounts (%1)": "Restore removed accounts (%1)",
+    "Could not update accounts.": "Could not update accounts."
   },
   "ar": {
     "": {
@@ -1271,7 +1343,13 @@
     "Gmail's background response could not be verified.": "Gmail's background response could not be verified.",
     "Background reception stopped responding.": "Background reception stopped responding.",
     "Background reception has not been verified.": "Background reception has not been verified.",
-    "Last check": "Last check"
+    "Last check": "Last check",
+    "Remove account from Mailbox": "Remove account from Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.",
+    "Remove account": "Remove account",
+    "Cancel": "Cancel",
+    "Restore removed accounts (%1)": "Restore removed accounts (%1)",
+    "Could not update accounts.": "Could not update accounts."
   },
   "tr": {
     "": {
@@ -1369,7 +1447,13 @@
     "Gmail's background response could not be verified.": "Gmail's background response could not be verified.",
     "Background reception stopped responding.": "Background reception stopped responding.",
     "Background reception has not been verified.": "Background reception has not been verified.",
-    "Last check": "Last check"
+    "Last check": "Last check",
+    "Remove account from Mailbox": "Remove account from Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.",
+    "Remove account": "Remove account",
+    "Cancel": "Cancel",
+    "Restore removed accounts (%1)": "Restore removed accounts (%1)",
+    "Could not update accounts.": "Could not update accounts."
   },
   "sv": {
     "": {
@@ -1467,7 +1551,13 @@
     "Gmail's background response could not be verified.": "Gmail's background response could not be verified.",
     "Background reception stopped responding.": "Background reception stopped responding.",
     "Background reception has not been verified.": "Background reception has not been verified.",
-    "Last check": "Last check"
+    "Last check": "Last check",
+    "Remove account from Mailbox": "Remove account from Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.",
+    "Remove account": "Remove account",
+    "Cancel": "Cancel",
+    "Restore removed accounts (%1)": "Restore removed accounts (%1)",
+    "Could not update accounts.": "Could not update accounts."
   },
   "da": {
     "": {
@@ -1565,7 +1655,13 @@
     "Gmail's background response could not be verified.": "Gmail's background response could not be verified.",
     "Background reception stopped responding.": "Background reception stopped responding.",
     "Background reception has not been verified.": "Background reception has not been verified.",
-    "Last check": "Last check"
+    "Last check": "Last check",
+    "Remove account from Mailbox": "Remove account from Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.",
+    "Remove account": "Remove account",
+    "Cancel": "Cancel",
+    "Restore removed accounts (%1)": "Restore removed accounts (%1)",
+    "Could not update accounts.": "Could not update accounts."
   },
   "no": {
     "": {
@@ -1663,7 +1759,13 @@
     "Gmail's background response could not be verified.": "Gmail's background response could not be verified.",
     "Background reception stopped responding.": "Background reception stopped responding.",
     "Background reception has not been verified.": "Background reception has not been verified.",
-    "Last check": "Last check"
+    "Last check": "Last check",
+    "Remove account from Mailbox": "Remove account from Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.",
+    "Remove account": "Remove account",
+    "Cancel": "Cancel",
+    "Restore removed accounts (%1)": "Restore removed accounts (%1)",
+    "Could not update accounts.": "Could not update accounts."
   },
   "fi": {
     "": {
@@ -1761,7 +1863,13 @@
     "Gmail's background response could not be verified.": "Gmail's background response could not be verified.",
     "Background reception stopped responding.": "Background reception stopped responding.",
     "Background reception has not been verified.": "Background reception has not been verified.",
-    "Last check": "Last check"
+    "Last check": "Last check",
+    "Remove account from Mailbox": "Remove account from Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.",
+    "Remove account": "Remove account",
+    "Cancel": "Cancel",
+    "Restore removed accounts (%1)": "Restore removed accounts (%1)",
+    "Could not update accounts.": "Could not update accounts."
   },
   "cs": {
     "": {
@@ -1859,6 +1967,12 @@
     "Gmail's background response could not be verified.": "Gmail's background response could not be verified.",
     "Background reception stopped responding.": "Background reception stopped responding.",
     "Background reception has not been verified.": "Background reception has not been verified.",
-    "Last check": "Last check"
+    "Last check": "Last check",
+    "Remove account from Mailbox": "Remove account from Mailbox",
+    "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.": "Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.",
+    "Remove account": "Remove account",
+    "Cancel": "Cancel",
+    "Restore removed accounts (%1)": "Restore removed accounts (%1)",
+    "Could not update accounts.": "Could not update accounts."
   }
 }

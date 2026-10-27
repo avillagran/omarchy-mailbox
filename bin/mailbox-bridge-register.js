@@ -11,7 +11,7 @@ const crypto = require('crypto');
 const root = path.resolve(__dirname, '..');
 const extensionId = 'kjmlhpckodkmfcjmelnkknkaeiognoed';
 const extensionPath = path.join(root, 'bridge-extension', 'source');
-const version = '0.0.7';
+const version = '0.0.8';
 const host = path.join(root, 'bin', 'mailbox-bridge-host.js');
 const remove = process.argv.includes('--remove') || process.argv.includes('--uninstall');
 // Browsers that honour --load-extension from their user flags file. Omarchy

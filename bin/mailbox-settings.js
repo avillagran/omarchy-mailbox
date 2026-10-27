@@ -6,6 +6,7 @@ const os = require('os');
 const path = require('path');
 const { readText, readJson, readStdinJson, LIMITS } = require(path.join(__dirname, 'mailbox-bounded-read.js'));
 const { spawnSync } = require('child_process');
+const { removedAccounts } = require('./mailbox-accounts.js');
 
 const file = path.join(os.homedir(), '.config', 'omarchy', 'mailbox.json');
 const colors = new Set(['accent', 'urgent', 'foreground', 'muted', 'red', 'yellow', 'orange', 'green', 'cyan', 'blue', 'magenta', 'brown']);
@@ -14,8 +15,8 @@ const colors = new Set(['accent', 'urgent', 'foreground', 'muted', 'red', 'yello
 // protects readers, but without serialization concurrent writers lose updates.
 // A stdin request is read before taking the lock, so a slow writer never holds it.
 async function runLocked() {
-  const input = process.argv[2] === 'set' ? JSON.stringify(await readStdinJson(LIMITS.small)) + '\n' : undefined;
-  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const input = ['set', 'remove-account'].includes(process.argv[2]) ? JSON.stringify(await readStdinJson(LIMITS.small)) + '\n' : undefined;
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
   const result = spawnSync('flock', ['-x', '-w', '10', `${file}.lock`, process.execPath, __filename, ...process.argv.slice(2)], {
     input,
     stdio: [input === undefined ? 'inherit' : 'pipe', 'inherit', 'inherit'],
@@ -52,7 +53,7 @@ function read() {
   }
 }
 function write(value) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
   atomicWrite(file, JSON.stringify(value, null, 2) + '\n');
 }
 function purgeBodies() {
@@ -69,6 +70,19 @@ function purgeBodies() {
 function initials(value) {
   return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
 }
+function purgeRemovedAccounts(removed) {
+  const root = path.join(os.homedir(), '.cache', 'omarchy', 'mailbox');
+  for (const name of ['bridge.json', 'inbox.json']) {
+    const target = path.join(root, name);
+    let data;
+    try { data = readJson(target, LIMITS.cache); } catch (error) { if (error.code === 'ENOENT') continue; throw error; }
+    if (Array.isArray(data.accounts)) data.accounts = data.accounts.filter(account => !removed.has(account.email));
+    else data.accounts = Object.fromEntries(Object.entries(data.accounts || {}).filter(([email]) => !removed.has(email)));
+    if (Array.isArray(data.emails)) data.emails = data.emails.filter(email => !removed.has(email.account));
+    if (Array.isArray(data.accounts)) data.total = data.accounts.reduce((sum, account) => sum + Number(account.unread || 0), 0);
+    atomicWrite(target, JSON.stringify(data));
+  }
+}
 
 async function main() {
   const [command, value] = process.argv.slice(2);
@@ -79,7 +93,20 @@ async function main() {
   data.downloadBodies = data.downloadBodies !== false;
   data.bridgeBrowserTarget = ['chrome', 'brave', 'chromium'].includes(data.bridgeBrowserTarget) ? data.bridgeBrowserTarget : '';
   data.inboxZero = data.inboxZero === true;
-  if (command === 'set') {
+  if (command === 'remove-account') {
+    const request = await readStdinJson(LIMITS.small);
+    const email = String(request.email || '').trim();
+    if (!email || email.length > 320) throw new Error('Invalid account');
+    const removed = removedAccounts(data);
+    if (!removed.has(email) && removed.size >= 128) throw new Error('Removed account limit reached');
+    removed.add(email);
+    data.removedAccounts = [...removed];
+    write(data); // Persist exclusion first, including when a concurrent capture is in flight.
+    purgeRemovedAccounts(removed);
+  } else if (command === 'restore-accounts') {
+    data.removedAccounts = [];
+    write(data);
+  } else if (command === 'set') {
     // The account address arrives on stdin so it never shows in process arguments.
     const request = await readStdinJson(LIMITS.small);
     const email = String(request.email || '').trim().slice(0, 320);

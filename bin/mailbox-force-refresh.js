@@ -12,7 +12,7 @@ const EXTENSION_ORIGIN = 'chrome-extension://kjmlhpckodkmfcjmelnkknkaeiognoed/';
 function openExtensionPage(page, selectedBrowser) {
   if (!/^[a-z]+\.html(?:#[a-f0-9]{32})?$/.test(page)) throw new Error('Unknown extension page');
   const status = JSON.parse(execFileSync(process.execPath,
-    [path.join(__dirname, 'mailbox-bridge-status.js'), ...(selectedBrowser ? [selectedBrowser] : [])], { encoding: 'utf8' }));
+    [path.join(__dirname, 'mailbox-bridge-status.js'), ...(selectedBrowser ? [selectedBrowser] : [])], { encoding: 'utf8', timeout: 5000, maxBuffer: 64 * 1024 }));
   if (!status.upToDate && status.installed && status.runtimeVersion && status.runtimeVersion !== status.latestVersion) {
     throw new Error(`The browser is still running Mailbox Local Bridge ${status.runtimeVersion}. Click Reload on it in the Extensions page to use ${status.latestVersion}.`);
   }

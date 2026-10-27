@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Mailbox Local Bridge",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Shares Gmail background feed checks, Gmail and HEY previews, and optional local plain-text conversation cache with Omarchy Mailbox. No passwords, cookies or OAuth tokens leave this computer.",
   "icons": {
     "16": "icons/icon-16.png",

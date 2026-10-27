@@ -30,6 +30,10 @@ The preview uses fictional `.test` accounts and sample messages; it contains no 
 
 Everything runs as the desktop user. Mailbox never asks for administrator access, never changes system browser policies, and never downloads anything during setup. The browser bridge is a bundled extension plus a per-user Native Messaging host, registered the same way Omarchy registers its own Chromium extensions: a `NativeMessagingHosts` manifest in the browser's user configuration and, for Chromium and Brave, a `--load-extension` entry in the user's own `~/.config/chromium-flags.conf` or `~/.config/brave-flags.conf`.
 
+## Accounts
+
+In Preferences, use the trash button beside an account and confirm **Remove account**. Mailbox removes its cached previews and stops polling or rediscovering it. This only affects Mailbox; the browser login and remote mailbox are unchanged. Private reply drafts and badge preferences are kept. **Restore removed accounts** re-enables discovery and background checks for remembered Gmail slots; HEY reconnects on your next normal visit. Exclusions are saved in `~/.config/omarchy/mailbox.json`.
+
 ## Installation
 
 ```bash
@@ -98,3 +102,5 @@ rm -rf ~/.local/state/omarchy/mailbox
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+The optional shortcut helper manages a marked Mailbox block in `~/.config/hypr/hyprland.lua`, migrates its old standalone require lines, preserves other bytes and file permissions, and creates a private `hyprland.lua.mailbox-backup.*` before each change. It refuses edited/partial blocks and removes references before removing `mailbox.lua`. Keep the backup to restore your previous configuration, or remove that backup after reviewing the change.

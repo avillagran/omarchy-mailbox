@@ -13,6 +13,10 @@ Panel {
 
   property var emails: []
   property var accounts: []
+  property var removedAccounts: []
+  property var accountToRemove: null
+  property string accountAction: "remove-account"
+  property string accountActionState: ""
   property var sourceInfo: ({})
   property int totalUnread: 0
   property string fetchStatus: "loading"
@@ -446,6 +450,23 @@ Panel {
     stdout: StdioCollector { waitForEnd: true }
     stderr: StdioCollector { waitForEnd: true; onStreamFinished: function() { if (text.trim().length) console.warn("Mailbox badge save failed: " + text.trim()) } }
   }
+  Process {
+    id: accountActionProc
+    command: root.accountAction === "restore-accounts" ? ["node", root.settingsBin, "restore-accounts"] : ["node", root.settingsBin, "remove-account"]
+    running: false
+    stdinEnabled: true
+    onStarted: { write(JSON.stringify({ email: root.accountToRemove ? root.accountToRemove.email : "" }) + "\n"); stdinEnabled = false }
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: { try { root.removedAccounts = JSON.parse(text).removedAccounts || [] } catch (_) {} } }
+    onExited: function(exitCode) {
+      root.accountActionState = exitCode === 0 ? "" : root.t("Could not update accounts.")
+      if (exitCode === 0) {
+        if (root.accountToRemove && root.selectedAccount === root.accountToRemove.email) root.selectedAccount = "__all__"
+        root.accountToRemove = null
+        if (root.hostWidget) root.hostWidget.refresh(true)
+        shortcutLoadProc.running = true
+      }
+    }
+  }
 
   Process {
     id: bridgeUninstallProc
@@ -475,6 +496,7 @@ Panel {
     running: false
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: function() { try {
       var value = JSON.parse(text)
+      root.removedAccounts = value.removedAccounts || []
       root.shortcutKey = value.shortcutKey || "Q"
       root.maxMessagesPerAccount = value.maxMessagesPerAccount || 50
       root.downloadBodies = value.downloadBodies !== false
@@ -580,9 +602,14 @@ Panel {
   }
   function gmailMessageUrl(email) {
     var direct = String(email && email.url || "")
-    if (email && email.notification && /^https:\/\/(?:mail\.google\.com|app\.hey\.com)\//.test(direct)) return direct
-    if (/^https:\/\/mail\.google\.com\/mail\/u\/\d+\/#(?:inbox|all|starred|important|sent|trash|spam|label\/[^/]+)\/[^/?#]+/.test(direct)) return direct
-    if (/^https:\/\/app\.hey\.com\/topics\/\d+/.test(direct)) return direct
+    if (email && email.notification) {
+      if (/^https:\/\/app\.hey\.com\//.test(direct)) return "https://app.hey.com/"
+      if (/^https:\/\/mail\.google\.com\//.test(direct)) return "https://mail.google.com/mail/"
+    }
+    var gmailDirect = direct.match(/^https:\/\/mail\.google\.com\/mail\/u\/([0-9]{1,3})\/#(?:inbox|all|starred|important|sent|trash|spam|label\/[^/]+)\/([A-Za-z0-9_-]{1,128})(?:[?#].*)?$/)
+    if (gmailDirect) return "https://mail.google.com/mail/u/" + gmailDirect[1] + "/#inbox/" + gmailDirect[2]
+    var heyDirect = direct.match(/^https:\/\/app\.hey\.com\/topics\/([0-9]{1,128})(?:[?#].*)?$/)
+    if (heyDirect) return "https://app.hey.com/topics/" + heyDirect[1]
     var account = root.accountFor(email.account)
     if (account && account.provider === "hey") {
       var heyThread = String(email.threadId || "").replace(/[^0-9]/g, "")
@@ -1202,8 +1229,33 @@ Panel {
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.saveBadge(parent.parent.account.email, initialsInput.text, modelData.role) }
                   }
                 }
+                Button {
+                  iconText: "󰆴"
+                  tooltipText: root.t("Remove account from Mailbox")
+                  bordered: false
+                  enabled: !accountActionProc.running
+                  onClicked: { root.accountToRemove = parent.account; root.accountActionState = "" }
+                }
               }
             }
+            Column {
+              width: parent.width
+              spacing: Style.space(6)
+              visible: root.accountToRemove !== null
+              Text { textFormat: Text.PlainText; width: parent.width; wrapMode: Text.WordWrap; text: root.tf("Remove %1 from Mailbox? Saved drafts will be kept. This does not change your email account.", [root.accountToRemove ? root.accountToRemove.label || root.accountToRemove.email : ""]); color: Color.popups.text; font.family: Style.font.family; font.pixelSize: Style.font.caption }
+              Row {
+                spacing: Style.space(8)
+                Button { text: root.t("Remove account"); enabled: !accountActionProc.running; onClicked: { root.accountAction = "remove-account"; accountActionProc.stdinEnabled = true; accountActionProc.running = true } }
+                Button { text: root.t("Cancel"); enabled: !accountActionProc.running; onClicked: root.accountToRemove = null }
+              }
+            }
+            Button {
+              visible: root.removedAccounts.length > 0
+              text: root.tf("Restore removed accounts (%1)", [root.removedAccounts.length])
+              enabled: !accountActionProc.running
+              onClicked: { root.accountToRemove = null; root.accountAction = "restore-accounts"; accountActionProc.stdinEnabled = true; accountActionProc.running = true }
+            }
+            Text { textFormat: Text.PlainText; visible: text.length > 0; width: parent.width; wrapMode: Text.WordWrap; text: root.accountActionState; color: Color.urgent; font.family: Style.font.family; font.pixelSize: Style.font.caption }
           }
 
           Text {

@@ -11,6 +11,7 @@ const os = require('os');
 const path = require('path');
 const { readJson, LIMITS } = require(path.join(__dirname, 'mailbox-bounded-read.js'));
 const { receptionStatus } = require(path.join(__dirname, 'mailbox-reception.js'));
+const { removedAccounts } = require('./mailbox-accounts.js');
 
 const SETTINGS_FILE = path.join(os.homedir(), '.config', 'omarchy', 'mailbox.json');
 function configuredMessageLimit() {
@@ -139,7 +140,8 @@ function readBridge() {
   try {
     const payload = readJson(BRIDGE_FILE, LIMITS.cache);
     const prefs = badgePreferences();
-    const stored = Object.values(payload.accounts || {}).filter(item => item && item.account).slice(0, MAX_ACCOUNTS);
+    const removed = removedAccounts();
+    const stored = Object.values(payload.accounts || {}).filter(item => item && item.account && !removed.has(item.account)).slice(0, MAX_ACCOUNTS);
     if (!stored.length) return null;
     const live = stored.some(item => Date.now() - Number(item.capturedAt || 0) <= BRIDGE_MAX_AGE_MS);
     const accounts = stored.map(item => {
@@ -156,6 +158,10 @@ function readBridge() {
   } catch (_) { return null; }
 }
 function applyLocalRead(result) {
+  const removed = removedAccounts();
+  result = { ...result, accounts: (result.accounts || []).filter(account => !removed.has(account.email)),
+    emails: (result.emails || []).filter(email => !removed.has(email.account)) };
+  result.total = result.accounts.reduce((sum, account) => sum + Number(account.unread || 0), 0) + result.emails.filter(email => email.notification).length;
   result = { ...result, accounts: (result.accounts || []).map(account => ({ ...account, ...receptionStatus(account) })) };
   let markedAt = 0;
   try { markedAt = Number(readJson(SETTINGS_FILE, LIMITS.settings).localReadAt || 0); } catch (_) {}

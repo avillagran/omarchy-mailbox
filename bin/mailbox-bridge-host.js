@@ -7,6 +7,7 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { readJson, LIMITS } = require(path.join(__dirname, 'mailbox-bounded-read.js'));
+const { removedAccounts } = require('./mailbox-accounts.js');
 
 const CACHE_DIR = path.join(os.homedir(), '.cache', 'omarchy', 'mailbox');
 const CACHE = path.join(CACHE_DIR, 'bridge.json');
@@ -91,6 +92,8 @@ function atomicWrite(file, text, mode = 0o600) {
   }
 }
 function save(data) {
+  const removed = removedAccounts();
+  for (const email of removed) delete data.accounts[email];
   enforceTotalBodyBudget(data);
   fs.mkdirSync(CACHE_DIR, { recursive: true, mode: 0o700 });
   data.schemaVersion = 2;
@@ -208,14 +211,22 @@ function handle(message) {
   try {
     if (message.type === 'mailbox-feed-targets') {
       const data = load();
-      const targets = Object.values(data.accounts || {}).filter(account => account.provider !== 'hey' && account.account && /^\d{1,3}$/.test(String(account.index)))
+      const removed = removedAccounts();
+      const configured = new Set(settings().configuredAccounts);
+      for (const [index, account] of Object.entries(slotAccounts())) {
+        if (configured.has(account) && !data.accounts[account] && /^\d{1,3}$/.test(index)) data.accounts[account] = { account, index, provider: 'gmail' };
+      }
+      const targets = Object.values(data.accounts || {}).filter(account => account.provider !== 'hey' && account.account && !removed.has(account.account) && /^\d{1,3}$/.test(String(account.index)))
         .slice(0, MAX_ACCOUNTS).map(account => ({ account: account.account, index: String(account.index) }));
       send({ ok: true, targets });
       return;
     }
     if (message.type === 'mailbox-feed-result') {
+      if (removedAccounts().has(message.account)) { send({ ok: true, ignored: true }); return; }
       const data = load();
-      const account = data.accounts[clip(message.account, 320)];
+      const email = clip(message.account, 320);
+      if (!data.accounts[email] && settings().configuredAccounts.includes(email) && mappedAccount(message.index) === email) data.accounts[email] = { account: email, index: String(message.index), provider: 'gmail', emails: [] };
+      const account = data.accounts[email];
       if (!account || account.provider === 'hey' || String(account.index) !== String(message.index)) throw new Error('Unknown feed account');
       let state = ['network-error', 'timeout', 'signed-out', 'unavailable', 'too-large'].includes(message.state) ? message.state : 'invalid-feed';
       if (message.state === 'ok' && typeof message.xml === 'string' && Buffer.byteLength(message.xml) <= 256 * 1024) {
@@ -273,6 +284,7 @@ function handle(message) {
     }
     message.provider = provider;
     if (!message.account) throw new Error('Email account could not be verified');
+    if (removedAccounts().has(message.account)) { send({ ok: true, ignored: true }); return; }
     if (!data.accounts[message.account] && Object.keys(data.accounts).length >= MAX_ACCOUNTS) throw new Error('Too many email accounts');
     if (provider === 'gmail') rememberSlot(message.index, message.account);
     if (message.type === 'mailbox-thread-body') {

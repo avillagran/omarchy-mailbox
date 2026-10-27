@@ -92,7 +92,7 @@ def test_i18n():
   english = catalog["en"]
   keys = set(english) - {""}
   check("i18n has 19 locales", len(catalog) == 19, str(sorted(catalog)))
-  check("i18n has 92 message IDs", len(keys) == 92, str(len(keys)))
+  check("i18n has 98 message IDs", len(keys) == 98, str(len(keys)))
   check("automatic Brave setup is localized", catalog["es"]["Install in Brave"] == "Instalar en Brave")
   check("configured status copy is localizable", "Extension %1 is configured; confirm it in the browser." in english)
   check("guided browser setup is localized", "Set up Chrome" in english and "Quit and reopen %1 to activate Mailbox Local Bridge." in english and "Drag Mailbox onto the page" in english and catalog["es"]["Turn on Developer mode"] == "Activa el Modo de desarrollador")
@@ -216,8 +216,8 @@ def test_marketplace_structure():
   marketplace_manifests = [path for path in ROOT.rglob("manifest.json") if len(path.relative_to(ROOT).parts) <= 2]
   check("marketplace sees exactly one root plugin manifest", marketplace_manifests == [ROOT / "manifest.json"], str(marketplace_manifests))
   check("marketplace plugin ID is namespaced and non-reserved", manifest["id"].startswith("io.github.avillagran.") and not manifest["id"].startswith("omarchy."))
-  check("plugin version advances with the guided Chrome window", manifest["version"] == "0.0.7", manifest["version"])
-  check("extension version advances with reply hand-off", json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())["version"] == "0.0.7")
+  check("plugin version advances with the guided Chrome window", manifest["version"] == "0.0.8", manifest["version"])
+  check("extension version advances with reply hand-off", json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())["version"] == "0.0.8")
   check("README documents Gmail and HEY support", "Gmail and HEY" in readme and "https://app.hey.com/*" in readme)
   check("marketplace root README documents installation", "## Installation" in readme and "omarchy plugin add" in readme)
   check("marketplace root README documents removal", "## Removal" in readme and "omarchy plugin remove" in readme)
@@ -645,7 +645,7 @@ def test_browser_installer():
       EXTENSION_ID: {"path": str(ROOT / "bridge-extension/source"), "location": 8}
     }}}))
     chromium_loaded = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js"), "--chromium"], env=status_env).stdout)
-    check("command-line Chromium extension reports active without a cached manifest or state field", chromium_loaded["installed"] and chromium_loaded["upToDate"] and chromium_loaded["loadedVersion"] == "0.0.7", str(chromium_loaded))
+    check("command-line Chromium extension reports active without a cached manifest or state field", chromium_loaded["installed"] and chromium_loaded["upToDate"] and chromium_loaded["loadedVersion"] == "0.0.8", str(chromium_loaded))
     (chromium_profile / "Preferences").write_text(json.dumps({"extensions": {"settings": {
       EXTENSION_ID: {"path": str(ROOT / "bridge-extension/source"), "location": 8, "state": 1}
     }}}))
@@ -945,7 +945,7 @@ process.stdout.write(JSON.stringify(launched));
 
 
 def main():
-  for command in (["python3", str(ROOT / "tests/test_feed.py")], ["node", str(ROOT / "tests/background-feed.cjs")]):
+  for command in (["python3", str(ROOT / "tests/test_feed.py")], ["python3", str(ROOT / "tests/test_accounts.py")], ["python3", str(ROOT / "tests/test_account_process.py")], ["python3", str(ROOT / "tests/test_keybind_preservation.py")], ["node", str(ROOT / "tests/background-feed.cjs")]):
     result = run(command)
     check("background reception behavioral checks", result.returncode == 0, result.stdout + result.stderr)
   test_safe_paste_and_account_launch()

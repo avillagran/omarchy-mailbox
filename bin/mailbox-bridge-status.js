@@ -11,7 +11,7 @@ const extensionPath = path.join(root, 'bridge-extension', 'source');
 const hostPath = path.join(root, 'bin', 'mailbox-bridge-host.js');
 const latestVersion = readJson(path.join(extensionPath, 'manifest.json'), LIMITS.small).version;
 let browser = '';
-try { browser = execFileSync('xdg-settings', ['get', 'default-web-browser'], { encoding: 'utf8' }).trim(); } catch (_) {}
+try { browser = execFileSync('xdg-settings', ['get', 'default-web-browser'], { encoding: 'utf8', timeout: 2000, maxBuffer: 4096 }).trim(); } catch (_) {}
 // Match the installed launcher variant that the guided setup itself opens.
 function installedLauncher(names) {
   const roots = [path.join(os.homedir(), '.local', 'share', 'applications'), '/usr/share/applications'];
