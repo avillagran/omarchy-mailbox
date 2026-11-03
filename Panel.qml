@@ -764,7 +764,7 @@ Panel {
   ChromeGuide { id: chromeGuide; panel: root }
   Component.onCompleted: shortcutLoadProc.running = true
 
-  PinnedKeyboardPanel {
+  KeyboardPanel {
     id: panel
     anchorItem: root.anchorItem
     owner: root.barIdentity

@@ -80,6 +80,11 @@ def test_static_files():
   text_elements = re.findall(r"(?<![A-Za-z.])Text \{[^\n]*(?:\n\s+[^\n]*)?", panel + (ROOT / "ChromeGuide.qml").read_text())
   check("every QML Text renders plain text", text_elements and all("textFormat: Text.PlainText" in element for element in text_elements), str(len(text_elements)))
   check("panel opens only provider URLs from bridge data", "safeInboxUrl" in (ROOT / "bin/mailbox-bridge-host.js").read_text() and "mail\\.google\\.com|app\\.hey\\.com" in (ROOT / "bin/mailbox.js").read_text())
+  # Omarchy 4.5 made the bar window span the whole screen; a copied 4.0 panel
+  # measured the bar from that window and dropped to the bottom of the screen.
+  # Panels must use the host's qs.Ui components so they follow host changes.
+  own_layer_shell = [path.name for path in ROOT.glob("*.qml") if re.search(r"\b(PanelWindow|WlrLayershell)\b", path.read_text())]
+  check("panel uses the host KeyboardPanel, not a copied layer-shell window", re.search(r"^\s*KeyboardPanel \{", panel, re.M) and not own_layer_shell, ", ".join(own_layer_shell))
   check("README describes the rootless flags-file setup", "chromium-flags.conf" in readme and "brave-flags.conf" in readme and "Load unpacked" in readme and "mailbox-bridge-register.js" in readme)
   shebang_files = [path for path in (ROOT / "bin").iterdir() if path.is_file() and path.read_bytes()[:2] == b"#!"]
   check("all shebang helpers are executable", all(os.access(path, os.X_OK) for path in shebang_files))
@@ -216,7 +221,7 @@ def test_marketplace_structure():
   marketplace_manifests = [path for path in ROOT.rglob("manifest.json") if len(path.relative_to(ROOT).parts) <= 2]
   check("marketplace sees exactly one root plugin manifest", marketplace_manifests == [ROOT / "manifest.json"], str(marketplace_manifests))
   check("marketplace plugin ID is namespaced and non-reserved", manifest["id"].startswith("io.github.avillagran.") and not manifest["id"].startswith("omarchy."))
-  check("plugin version advances with the guided Chrome window", manifest["version"] == "0.0.8", manifest["version"])
+  check("plugin version advances with the host panel compatibility fix", manifest["version"] == "0.0.9", manifest["version"])
   check("extension version advances with reply hand-off", json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())["version"] == "0.0.8")
   check("README documents Gmail and HEY support", "Gmail and HEY" in readme and "https://app.hey.com/*" in readme)
   check("marketplace root README documents installation", "## Installation" in readme and "omarchy plugin add" in readme)
