@@ -7,6 +7,21 @@
   let allowedThreadIds = new Set();
   let lastBodySignature = '';
   let accountIdentityVerified = false;
+  let lastSnapshotSignature = '';
+  let lastSnapshotAt = 0;
+  // Gmail's "show trimmed content" button toggles, and the same button sits in
+  // the reply box. Click each expander once, and never inside a compose area.
+  const expandedNodes = new WeakSet();
+  const COMPOSE_SELECTOR = '[contenteditable="true"], [g_editable="true"], [role="dialog"], .M9, .ip, .aoI, .AD';
+  function insideCompose(node) {
+    const element = node?.nodeType === 1 ? node : node?.parentElement;
+    return !!element?.closest?.(COMPOSE_SELECTOR);
+  }
+  function composeOpen() {
+    const active = document.activeElement;
+    if (active && (active.isContentEditable || insideCompose(active))) return true;
+    return [...document.querySelectorAll('div[contenteditable="true"][g_editable="true"]')].some(node => node.offsetParent !== null);
+  }
   const heyProvider = location.hostname === 'app.hey.com' ? globalThis.MailboxHeyProvider : null;
 
   function text(node) { return node ? (node.innerText || node.textContent || '').trim() : ''; }
@@ -69,11 +84,19 @@
       url
     };
   }
-  function snapshotInbox() {
+  // Mutation bursts would otherwise start a native host for every keystroke.
+  function sendSnapshot(data, force) {
+    const signature = JSON.stringify(data);
+    if (!force && signature === lastSnapshotSignature && Date.now() - lastSnapshotAt < 25000) return;
+    lastSnapshotSignature = signature;
+    lastSnapshotAt = Date.now();
+    chrome.runtime.sendMessage({ type: 'mailbox-snapshot', data });
+  }
+  function snapshotInbox(force) {
     if (heyProvider) {
       const data = heyProvider.snapshotInbox(document, location.href);
       data.notificationPermission = notificationPermission();
-      if (!data.signedOut && data.account) chrome.runtime.sendMessage({ type: 'mailbox-snapshot', data });
+      if (!data.signedOut && data.account) sendSnapshot(data, force);
       return;
     }
     const rows = [...document.querySelectorAll('tr[role="row"], tr.zA, div[role="row"]')];
@@ -85,17 +108,15 @@
       if (!item.subject || seen.has(key)) continue;
       seen.add(key); emails.push(item);
     }
-    chrome.runtime.sendMessage({
-      type: 'mailbox-snapshot',
-      data: { account: accountEmail(), accountVerified: accountIdentityVerified, index: accountIndex(), notificationPermission: notificationPermission(), unread: emails.filter(item => item.unread).length, emails }
-    });
+    sendSnapshot({ account: accountEmail(), accountVerified: accountIdentityVerified, index: accountIndex(), notificationPermission: notificationPermission(), unread: emails.filter(item => item.unread).length, emails }, force);
   }
   function currentThreadId() { return heyProvider ? heyProvider.threadIdFromUrl(location.href) : threadIdFromUrl(location.href); }
   function expandConversation() {
-    if (heyProvider) return false;
+    if (heyProvider || composeOpen()) return false;
     let clicked = false;
     for (const node of [...document.querySelectorAll('.adx[role="button"], .ajR')].slice(0, 30)) {
-      if (node.offsetParent === null) continue;
+      if (expandedNodes.has(node) || node.offsetParent === null || insideCompose(node) || node.getAttribute('aria-expanded') === 'true') continue;
+      expandedNodes.add(node);
       try { node.click(); clicked = true; } catch (_) {}
     }
     return clicked;
@@ -134,9 +155,11 @@
     lastBodySignature = signature;
     chrome.runtime.sendMessage({ type: 'mailbox-thread-body', data });
   }
-  function publish() {
+  let forceNext = false;
+  function publish(force = false) {
+    forceNext = forceNext || force === true;
     clearTimeout(timer);
-    timer = setTimeout(() => { snapshotInbox(); publishConversation(); }, 250);
+    timer = setTimeout(() => { const forced = forceNext; forceNext = false; snapshotInbox(forced); publishConversation(); }, 250);
   }
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   // Fill the reply box for a reply prepared in Mailbox. Gmail only: HEY keeps
@@ -171,7 +194,7 @@
       composeReply(String(message.threadId || ''), message.text.slice(0, 200000)).then(ok => sendResponse({ ok }), () => sendResponse({ ok: false }));
       return true;
     }
-    if (message?.type === 'mailbox-refresh') publish();
+    if (message?.type === 'mailbox-refresh') publish(true);
     if (message?.type === 'mailbox-body-policy') {
       bodyDownloadsEnabled = message.enabled === true;
       allowedThreadIds = new Set((message.allowedThreadIds || []).map(value => String(value).replace(/^#/, '')));
@@ -179,9 +202,10 @@
       publishConversation();
     }
   });
-  new MutationObserver(publish).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'aria-expanded'] });
+  // Typing in a compose or reply box changes nothing Mailbox reads.
+  new MutationObserver(records => { if (!records.every(record => insideCompose(record.target))) publish(); }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'aria-expanded'] });
   window.addEventListener('hashchange', () => { lastBodySignature = ''; publish(); });
   document.addEventListener('turbo:load', () => { lastBodySignature = ''; publish(); });
-  publish();
-  setInterval(publish, 30000);
+  publish(true);
+  setInterval(() => publish(true), 30000);
 })();

@@ -221,8 +221,8 @@ def test_marketplace_structure():
   marketplace_manifests = [path for path in ROOT.rglob("manifest.json") if len(path.relative_to(ROOT).parts) <= 2]
   check("marketplace sees exactly one root plugin manifest", marketplace_manifests == [ROOT / "manifest.json"], str(marketplace_manifests))
   check("marketplace plugin ID is namespaced and non-reserved", manifest["id"].startswith("io.github.avillagran.") and not manifest["id"].startswith("omarchy."))
-  check("plugin version advances with the host panel compatibility fix", manifest["version"] == "0.0.9", manifest["version"])
-  check("extension version advances with reply hand-off", json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())["version"] == "0.0.8")
+  check("plugin version advances with the Gmail compose loop fix", manifest["version"] == "0.0.10", manifest["version"])
+  check("extension version advances with the compose loop fix", json.loads((ROOT / "bridge-extension/source/manifest.json").read_text())["version"] == "0.0.9")
   check("README documents Gmail and HEY support", "Gmail and HEY" in readme and "https://app.hey.com/*" in readme)
   check("marketplace root README documents installation", "## Installation" in readme and "omarchy plugin add" in readme)
   check("marketplace root README documents removal", "## Removal" in readme and "omarchy plugin remove" in readme)
@@ -650,7 +650,7 @@ def test_browser_installer():
       EXTENSION_ID: {"path": str(ROOT / "bridge-extension/source"), "location": 8}
     }}}))
     chromium_loaded = json.loads(run(["node", str(ROOT / "bin/mailbox-bridge-status.js"), "--chromium"], env=status_env).stdout)
-    check("command-line Chromium extension reports active without a cached manifest or state field", chromium_loaded["installed"] and chromium_loaded["upToDate"] and chromium_loaded["loadedVersion"] == "0.0.8", str(chromium_loaded))
+    check("command-line Chromium extension reports active without a cached manifest or state field", chromium_loaded["installed"] and chromium_loaded["upToDate"] and chromium_loaded["loadedVersion"] == "0.0.9", str(chromium_loaded))
     (chromium_profile / "Preferences").write_text(json.dumps({"extensions": {"settings": {
       EXTENSION_ID: {"path": str(ROOT / "bridge-extension/source"), "location": 8, "state": 1}
     }}}))
@@ -949,6 +949,78 @@ process.stdout.write(JSON.stringify(launched));
     skip('real Qt keyboard interaction suite', 'qmltestrunner is not installed')
 
 
+def test_gmail_compose_is_left_alone():
+  script = r"""
+const assert = require('assert');
+const fs = require('fs');
+const vm = require('vm');
+const COMPOSE = ['[contenteditable="true"]', '[g_editable="true"]', '[role="dialog"]', '.M9', '.ip', '.aoI', '.AD'];
+class Node {
+  constructor(attrs = {}, parent = null) { this.nodeType = 1; this.attrs = attrs; this.parentElement = parent; this.offsetParent = {}; this.clicks = 0; this.classList = { contains: () => false }; this.innerText = ''; }
+  getAttribute(name) { return this.attrs[name] ?? null; }
+  matches(selector) {
+    if (selector.startsWith('.')) return (this.attrs.class || '').split(' ').includes(selector.slice(1));
+    const m = selector.match(/^\[([\w-]+)="([^"]*)"\]$/);
+    return !!m && this.attrs[m[1]] === m[2];
+  }
+  closest(selector) { const parts = selector.split(', '); for (let n = this; n; n = n.parentElement) if (parts.some(part => n.matches(part))) return n; return null; }
+  get isContentEditable() { return this.attrs.contenteditable === 'true'; }
+  click() { this.clicks++; }
+  querySelector() { return null; }
+  querySelectorAll() { return []; }
+}
+const thread = new Node({ class: 'adn ads' });
+const trimmed = new Node({ class: 'ajR', role: 'button' }, thread);
+const reply = new Node({ class: 'M9' });
+const replyTrimmed = new Node({ class: 'ajR', role: 'button' }, reply);
+const editor = new Node({ contenteditable: 'true', g_editable: 'true' }, reply);
+let composing = false;
+let observerCallback = null;
+const sent = [];
+let listener = null;
+const timers = [];
+const document = {
+  activeElement: null,
+  documentElement: {},
+  addEventListener() {},
+  querySelector() { return null; },
+  querySelectorAll(selector) {
+    if (selector.includes('.ajR')) return composing ? [trimmed, replyTrimmed] : [trimmed];
+    if (selector.includes('g_editable')) return composing ? [editor] : [];
+    return [];
+  }
+};
+const context = {
+  location: { hostname: 'mail.google.com', pathname: '/mail/u/0/', href: 'https://mail.google.com/mail/u/0/#inbox/abc', hash: '#inbox/abc' },
+  document, Notification: { permission: 'granted' }, URL, Set, WeakSet, JSON, Date, Promise,
+  setTimeout: fn => { timers.push(fn); return timers.length; }, clearTimeout() {}, setInterval() {},
+  window: { addEventListener() {} },
+  MutationObserver: class { constructor(cb) { observerCallback = cb; } observe() {} },
+  chrome: { runtime: { sendMessage: message => sent.push(message), onMessage: { addListener: fn => { listener = fn; } } } }
+};
+context.globalThis = context;
+vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), context);
+const flush = () => { for (let i = 0; timers.length; i++) { assert.ok(i < 200, 'captures keep rescheduling themselves (click loop)'); timers.shift()(); } };
+const policy = () => listener({ type: 'mailbox-body-policy', enabled: true, allowedThreadIds: ['abc'] }, {}, () => {});
+flush();
+for (let i = 0; i < 5; i++) { policy(); flush(); }
+assert.strictEqual(trimmed.clicks, 1, 'the trimmed-content toggle is clicked once, not on every capture');
+composing = true; document.activeElement = editor;
+for (let i = 0; i < 5; i++) { policy(); flush(); }
+assert.strictEqual(replyTrimmed.clicks, 0, 'nothing inside the reply box is clicked');
+const before = sent.length;
+for (let i = 0; i < 20; i++) { observerCallback([{ target: editor }]); flush(); }
+assert.strictEqual(sent.length, before, 'typing in the reply box sends no captures');
+observerCallback([{ target: thread }]); flush();
+assert.strictEqual(sent.length, before, 'an unchanged inbox is not resent on every mutation');
+listener({ type: 'mailbox-refresh' }, {}, () => {}); flush();
+assert.strictEqual(sent.length, before + 1, 'an explicit refresh still sends a capture');
+console.log('ok');
+"""
+  result = run(["node", "-e", script, str(ROOT / "bridge-extension/source/content.js")])
+  check("Gmail compose box is never toggled or re-captured while typing", result.returncode == 0 and "ok" in result.stdout, result.stderr[-800:])
+
+
 def main():
   for command in (["python3", str(ROOT / "tests/test_feed.py")], ["python3", str(ROOT / "tests/test_accounts.py")], ["python3", str(ROOT / "tests/test_account_process.py")], ["python3", str(ROOT / "tests/test_keybind_preservation.py")], ["node", str(ROOT / "tests/background-feed.cjs")]):
     result = run(command)
@@ -961,6 +1033,7 @@ def main():
   test_i18n()
   test_versions()
   test_hey_provider()
+  test_gmail_compose_is_left_alone()
   test_marketplace_structure()
   test_panel_badge_propagation()
   test_mark_as_read_keeps_messages()
